@@ -1,8 +1,9 @@
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import Spinner from '../../components/Spinner';
 
 // Form type definition
 type PaymentFormValues = {
@@ -15,11 +16,21 @@ export default function Payment() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { recipientBank, accountNumber, transactionType } = params;
+  const [isLoading, setIsLoading] = useState(true);
 
   // Focus states
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const [isReferenceFocused, setIsReferenceFocused] = useState(false);
   const [isDetailsFocused, setIsDetailsFocused] = useState(false);
+
+  // Set loading to false after component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 300); // Short delay to ensure smooth transition
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Quick reference options
   const referenceOptions = ['Fund Transfer', 'Gift', 'Meals'];
@@ -233,6 +244,9 @@ export default function Payment() {
           <Text className="text-center text-base font-semibold text-white">Next</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Loading Spinner Overlay */}
+      {isLoading && <Spinner text="Loading payment details..." />}
     </View>
   );
 }

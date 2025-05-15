@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import NotValidModal from '../../components/NotValidModal';
+import Spinner from '../../components/Spinner';
 
 // Array of Malaysian banks and digital banks
 const MALAYSIAN_BANKS = [
@@ -42,6 +43,7 @@ export default function Transfer() {
   const router = useRouter();
   const [tab, setTab] = useState<'bank' | 'others'>('bank');
   const [isAccountNumberFocused, setIsAccountNumberFocused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Bank modal
   const [showBankModal, setShowBankModal] = useState(false);
@@ -86,11 +88,20 @@ export default function Transfer() {
         return;
       }
 
-      // Account number is valid, navigate to payment details
-      router.push({
-        pathname: '/account/payment',
-        params: data,
-      } as any);
+      // Set loading state
+      setIsLoading(true);
+
+      // Delay navigation to show loading spinner
+      setTimeout(() => {
+        // Account number is valid, navigate to payment details
+        router.push({
+          pathname: '/account/payment',
+          params: data,
+        } as any);
+
+        // Reset loading state
+        setIsLoading(false);
+      }, 1000);
     } else {
       // For others tab, show error modal
       setShowErrorModal(true);
@@ -296,6 +307,9 @@ export default function Transfer() {
         title="Invalid Account Number"
         message="Account number must be at least 4 digits. Please check and re-enter the account number."
       />
+
+      {/* Loading Spinner Overlay */}
+      {isLoading && <Spinner text="Processing..." />}
     </View>
   );
 }
