@@ -33,7 +33,7 @@ export default function Payment() {
   }, []);
 
   // Quick reference options
-  const referenceOptions = ['Fund Transfer', 'Gift', 'Meals'];
+  const referenceOptions = ['Fund Transfer', 'Gift', 'Meals', 'Others'];
 
   // React Hook Form
   const {
@@ -65,9 +65,24 @@ export default function Payment() {
       return;
     }
 
-    console.log('Form submitted:', data);
-    // Navigate to the next page or process payment
-    // router.push(...);
+    // Set loading before navigation
+    setIsLoading(true);
+
+    // Add slight delay to show loading state
+    setTimeout(() => {
+      // Navigate to review page with all the necessary data
+      router.push({
+        pathname: '/account/review',
+        params: {
+          ...params, // Pass through the existing params from transfer page
+          amount: data.amount,
+          reference: data.reference || '',
+          note: data.note || '',
+        },
+      } as any);
+
+      setIsLoading(false);
+    }, 600);
   };
 
   // Quick reference handler

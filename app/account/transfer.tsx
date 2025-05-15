@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import NotValidModal from '../../components/NotValidModal';
+import Authentication from '../../components/Authentication';
 import Spinner from '../../components/Spinner';
 
 // Array of Malaysian banks and digital banks
@@ -43,7 +44,9 @@ export default function Transfer() {
   const router = useRouter();
   const [tab, setTab] = useState<'bank' | 'others'>('bank');
   const [isAccountNumberFocused, setIsAccountNumberFocused] = useState(false);
+  const [showAuthentication, setShowAuthentication] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [transferData, setTransferData] = useState<BankTransferFormValues | null>(null);
 
   // Bank modal
   const [showBankModal, setShowBankModal] = useState(false);
@@ -88,24 +91,39 @@ export default function Transfer() {
         return;
       }
 
-      // Set loading state
-      setIsLoading(true);
-
-      // Delay navigation to show loading spinner
-      setTimeout(() => {
-        // Account number is valid, navigate to payment details
-        router.push({
-          pathname: '/account/payment',
-          params: data,
-        } as any);
-
-        // Reset loading state
-        setIsLoading(false);
-      }, 1000);
+      // Store the data and show authentication
+      setTransferData(data);
+      setShowAuthentication(true);
     } else {
       // For others tab, show error modal
       setShowErrorModal(true);
     }
+  };
+
+  const handleAuthenticated = () => {
+    if (!transferData) return;
+
+    // Show loading state
+    setIsLoading(true);
+
+    // Add delay for loading state visibility
+    setTimeout(() => {
+      // Navigate to payment page with the stored data
+      router.push({
+        pathname: '/account/payment',
+        params: transferData,
+      } as any);
+
+      // Reset states
+      setIsLoading(false);
+      setShowAuthentication(false);
+      setTransferData(null);
+    }, 1000);
+  };
+
+  const handleAuthCancel = () => {
+    setShowAuthentication(false);
+    setTransferData(null);
   };
 
   return (
@@ -137,66 +155,74 @@ export default function Transfer() {
       </View>
       {/* Bank Account Form */}
       {tab === 'bank' && (
-        <View className="mb-6 gap-4 px-4">
+        <View className="mb-6 px-4">
           {/* Recipient Bank */}
-          <Controller
-            control={control}
-            name="recipientBank"
-            rules={{ validate: (value) => value !== '' }}
-            render={({ field: { onChange, value } }) => (
-              <TouchableOpacity
-                className="flex-row items-center justify-between border-b border-gray-300 py-3"
-                onPress={() => setShowBankModal(true)}>
-                <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
-                  {value || 'Select bank'}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color="#aaa" />
-              </TouchableOpacity>
-            )}
-          />
+          <View className="mb-8 mt-8">
+            <Text className="text-sm font-medium text-gray-500">Recipient Bank</Text>
+            <Controller
+              control={control}
+              name="recipientBank"
+              rules={{ validate: (value) => value !== '' }}
+              render={({ field: { onChange, value } }) => (
+                <TouchableOpacity
+                  className="flex-row items-center justify-between border-b border-gray-300 py-3"
+                  onPress={() => setShowBankModal(true)}>
+                  <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
+                    {value || 'Select bank'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#aaa" />
+                </TouchableOpacity>
+              )}
+            />
+          </View>
 
           {/* Account Number */}
-          <Controller
-            control={control}
-            name="accountNumber"
-            rules={{
-              required: true, // Only require any input
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                className={`border-b py-3 text-base text-gray-700 ${
-                  isAccountNumberFocused ? 'border-primary border-b-2' : 'border-gray-300'
-                }`}
-                placeholder="Account number"
-                placeholderTextColor="#aaa"
-                keyboardType="numeric"
-                value={value}
-                onChangeText={onChange}
-                onBlur={() => {
-                  onBlur();
-                  setIsAccountNumberFocused(false);
-                }}
-                onFocus={() => setIsAccountNumberFocused(true)}
-              />
-            )}
-          />
-
-          {/* Account Type */}
-          <Controller
-            control={control}
-            name="transactionType"
-            rules={{ validate: (value) => value !== '' }}
-            render={({ field: { onChange, value } }) => (
-              <TouchableOpacity
-                className="flex-row items-center justify-between border-b border-gray-300 py-3"
-                onPress={() => setShowTypeModal(true)}>
-                <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
-                  {value || 'Select type'}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color="#aaa" />
-              </TouchableOpacity>
-            )}
-          />
+          <View className="mb-8">
+            <Text className="text-sm font-medium text-gray-500">Account Number</Text>
+            <Controller
+              control={control}
+              name="accountNumber"
+              rules={{
+                required: true, // Only require any input
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  className={`border-b py-3 text-base text-gray-700 ${
+                    isAccountNumberFocused ? 'border-b-2 border-primary' : 'border-gray-300'
+                  }`}
+                  placeholder="Account number"
+                  placeholderTextColor="#aaa"
+                  keyboardType="numeric"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={() => {
+                    onBlur();
+                    setIsAccountNumberFocused(false);
+                  }}
+                  onFocus={() => setIsAccountNumberFocused(true)}
+                />
+              )}
+            />
+          </View>
+          {/* Transfer Type */}
+          <View className="mb-8">
+            <Text className="text-sm font-medium text-gray-500">Transfer type</Text>
+            <Controller
+              control={control}
+              name="transactionType"
+              rules={{ validate: (value) => value !== '' }}
+              render={({ field: { onChange, value } }) => (
+                <TouchableOpacity
+                  className="flex-row items-center justify-between border-b border-gray-300 py-3"
+                  onPress={() => setShowTypeModal(true)}>
+                  <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
+                    {value || 'Select type'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#aaa" />
+                </TouchableOpacity>
+              )}
+            />
+          </View>
         </View>
       )}
       {/* Others Tab */}
@@ -227,6 +253,20 @@ export default function Transfer() {
         </TouchableOpacity>
       </View>
 
+      {/* Authentication Modal */}
+      {showAuthentication && (
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={showAuthentication}
+          onRequestClose={handleAuthCancel}>
+          <Authentication onAuthenticate={handleAuthenticated} onCancel={handleAuthCancel} />
+        </Modal>
+      )}
+
+      {/* Loading Spinner */}
+      {isLoading && <Spinner text="Preparing transfer details..." />}
+
       {/* Bank Modal */}
       <Modal
         animationType="slide"
@@ -245,13 +285,13 @@ export default function Transfer() {
               {MALAYSIAN_BANKS.map((bank, index) => (
                 <TouchableOpacity
                   key={index}
-                  className={`rounded-xl border p-4 ${watchedValues.recipientBank === bank ? 'border-primary border-2' : 'border-gray-200'}`}
+                  className={`rounded-xl border p-4 ${watchedValues.recipientBank === bank ? 'border-2 border-primary' : 'border-gray-200'}`}
                   onPress={() => {
                     setValue('recipientBank', bank);
                     setShowBankModal(false);
                   }}>
                   <Text
-                    className={`text-base ${watchedValues.recipientBank === bank ? 'text-primary font-semibold' : ''}`}>
+                    className={`text-base ${watchedValues.recipientBank === bank ? 'font-semibold text-primary' : ''}`}>
                     {bank}
                   </Text>
                 </TouchableOpacity>
@@ -283,13 +323,13 @@ export default function Transfer() {
                 {TRANSACTION_TYPES.map((type, index) => (
                   <TouchableOpacity
                     key={index}
-                    className={`w-full rounded-xl border p-4 ${watchedValues.transactionType === type ? 'border-primary border-2' : 'border-gray-200'}`}
+                    className={`w-full rounded-xl border p-4 ${watchedValues.transactionType === type ? 'border-2 border-primary' : 'border-gray-200'}`}
                     onPress={() => {
                       setValue('transactionType', type);
                       setShowTypeModal(false);
                     }}>
                     <Text
-                      className={`text-center text-base ${watchedValues.transactionType === type ? 'text-primary font-semibold' : ''}`}>
+                      className={`text-center text-base ${watchedValues.transactionType === type ? 'font-semibold text-primary' : ''}`}>
                       {type}
                     </Text>
                   </TouchableOpacity>
@@ -307,9 +347,6 @@ export default function Transfer() {
         title="Invalid Account Number"
         message="Account number must be at least 4 digits. Please check and re-enter the account number."
       />
-
-      {/* Loading Spinner Overlay */}
-      {isLoading && <Spinner text="Processing..." />}
     </View>
   );
 }
