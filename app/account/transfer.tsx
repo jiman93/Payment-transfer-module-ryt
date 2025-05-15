@@ -5,8 +5,6 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import NotValidModal from '../../components/NotValidModal';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-
 // Array of Malaysian banks and digital banks
 const MALAYSIAN_BANKS = [
   'Maybank',
@@ -63,9 +61,9 @@ export default function Transfer() {
     formState: { errors, isValid },
   } = useForm<BankTransferFormValues>({
     defaultValues: {
-      recipientBank: 'Select bank',
+      recipientBank: '',
       accountNumber: '',
-      transactionType: 'Select type',
+      transactionType: '',
     },
     mode: 'onChange', // Validate on change for real-time button disabling
   });
@@ -74,16 +72,25 @@ export default function Transfer() {
   const watchedValues = watch();
   const isFormValid =
     tab === 'bank' &&
-    watchedValues.recipientBank !== 'Select bank' &&
+    watchedValues.recipientBank !== '' &&
     watchedValues.accountNumber !== '' &&
-    watchedValues.transactionType !== 'Select type';
+    watchedValues.transactionType !== '';
 
   // Form submission handler
   const onSubmit = (data: BankTransferFormValues) => {
     if (tab === 'bank') {
-      // In a real app, this would process the form data
-      // For now, just show the error modal
-      setShowErrorModal(true);
+      // Check if account number has less than 4 digits
+      if (data.accountNumber.length < 4) {
+        // Show error modal for short account numbers
+        setShowErrorModal(true);
+        return;
+      }
+
+      // Account number is valid, navigate to payment details
+      router.push({
+        pathname: '/account/payment',
+        params: data,
+      } as any);
     } else {
       // For others tab, show error modal
       setShowErrorModal(true);
@@ -93,11 +100,11 @@ export default function Transfer() {
   return (
     <View className="mb-8 flex-1 bg-white pt-8">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pb-4 pt-12">
+      <View className="flex-row items-center justify-between px-4 pb-8 pt-12">
         <TouchableOpacity onPress={() => router.replace('/account')}>
           <Ionicons name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-base font-semibold text-gray-800">Transfer</Text>
+        <Text className="flex-1 text-center text-xl font-semibold text-gray-800">Transfer</Text>
         <View style={{ width: 24 }} />
       </View>
       {/* Tabs */}
@@ -124,14 +131,13 @@ export default function Transfer() {
           <Controller
             control={control}
             name="recipientBank"
-            rules={{ validate: (value) => value !== 'Select bank' }}
+            rules={{ validate: (value) => value !== '' }}
             render={({ field: { onChange, value } }) => (
               <TouchableOpacity
                 className="flex-row items-center justify-between border-b border-gray-300 py-3"
                 onPress={() => setShowBankModal(true)}>
-                <Text
-                  className={`text-base ${value === 'Select bank' ? 'text-gray-400' : 'text-gray-700'}`}>
-                  {value}
+                <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
+                  {value || 'Select bank'}
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color="#aaa" />
               </TouchableOpacity>
@@ -142,7 +148,9 @@ export default function Transfer() {
           <Controller
             control={control}
             name="accountNumber"
-            rules={{ required: true }}
+            rules={{
+              required: true, // Only require any input
+            }}
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
                 className={`border-b py-3 text-base text-gray-700 ${
@@ -150,7 +158,7 @@ export default function Transfer() {
                 }`}
                 placeholder="Account number"
                 placeholderTextColor="#aaa"
-                keyboardType="number-pad"
+                keyboardType="numeric"
                 value={value}
                 onChangeText={onChange}
                 onBlur={() => {
@@ -166,14 +174,13 @@ export default function Transfer() {
           <Controller
             control={control}
             name="transactionType"
-            rules={{ validate: (value) => value !== 'Select type' }}
+            rules={{ validate: (value) => value !== '' }}
             render={({ field: { onChange, value } }) => (
               <TouchableOpacity
                 className="flex-row items-center justify-between border-b border-gray-300 py-3"
                 onPress={() => setShowTypeModal(true)}>
-                <Text
-                  className={`text-base ${value === 'Select type' ? 'text-gray-400' : 'text-gray-700'}`}>
-                  {value}
+                <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
+                  {value || 'Select type'}
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color="#aaa" />
               </TouchableOpacity>
@@ -286,8 +293,8 @@ export default function Transfer() {
       <NotValidModal
         visible={showErrorModal}
         onClose={() => setShowErrorModal(false)}
-        title="Not valid"
-        message="Account number entered is invalid or transfer type is incorrect. Please check with your recipient or re-enter the account number."
+        title="Invalid Account Number"
+        message="Account number must be at least 4 digits. Please check and re-enter the account number."
       />
     </View>
   );
