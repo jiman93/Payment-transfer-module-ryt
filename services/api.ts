@@ -1,535 +1,641 @@
-import {
-  UUID,
-  Account,
-  Recipient,
-  TransferStatus,
-  Channel,
-  TransferRequestDto,
-  Transfer,
-  FailReason,
-} from '../types/models';
-import {
-  getMockAccounts,
-  getMockRecipients,
-  generateReferenceCode,
-  generateId,
-  getMockUserById,
-  validateUserCredentials,
-  DEFAULT_USER,
-} from '../mocks';
+// import {
+//   UUID,
+//   Account,
+//   Recipient,
+//   TransferStatus,
+//   Channel,
+//   TransferRequestDto,
+//   Transfer,
+//   FailReason,
+//   TransferPaginationParams,
+//   NewTransferRequest,
+// } from '../types/models';
+// import {
+//   getMockAccounts,
+//   getMockRecipients,
+//   generateReferenceCode,
+//   generateId,
+//   getMockUserById,
+//   validateUserCredentials,
+//   getMockAccount,
+// } from '../mocks';
+// import { mockRecipients, getPaginatedTransfers, addTransfer } from '../mocks/transfers';
 
-// Import error handling separately to avoid circular dependencies
-export enum ErrorCode {
-  // Network errors
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+// // Import error handling separately to avoid circular dependencies
+// export enum ErrorCode {
+//   // Network errors
+//   NETWORK_ERROR = 'NETWORK_ERROR',
+//   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
 
-  // Authentication errors
-  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
-  USER_NOT_FOUND = 'USER_NOT_FOUND',
-  SESSION_EXPIRED = 'SESSION_EXPIRED',
-  UNAUTHORIZED = 'UNAUTHORIZED',
+//   // Authentication errors
+//   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+//   USER_NOT_FOUND = 'USER_NOT_FOUND',
+//   SESSION_EXPIRED = 'SESSION_EXPIRED',
+//   UNAUTHORIZED = 'UNAUTHORIZED',
 
-  // Account errors
-  ACCOUNT_NOT_FOUND = 'ACCOUNT_NOT_FOUND',
-  INVALID_ACCOUNT_FORMAT = 'INVALID_ACCOUNT_FORMAT',
-  ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
+//   // Account errors
+//   ACCOUNT_NOT_FOUND = 'ACCOUNT_NOT_FOUND',
+//   INVALID_ACCOUNT_FORMAT = 'INVALID_ACCOUNT_FORMAT',
+//   ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
 
-  // Bank errors
-  INVALID_BANK_CODE = 'INVALID_BANK_CODE',
-  BANK_NOT_SUPPORTED = 'BANK_NOT_SUPPORTED',
+//   // Bank errors
+//   INVALID_BANK_CODE = 'INVALID_BANK_CODE',
+//   BANK_NOT_SUPPORTED = 'BANK_NOT_SUPPORTED',
 
-  // Transfer errors
-  INVALID_AMOUNT = 'INVALID_AMOUNT',
-  INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
-  TRANSFER_LIMIT_EXCEEDED = 'TRANSFER_LIMIT_EXCEEDED',
-  INVALID_RECIPIENT = 'INVALID_RECIPIENT',
-  TRANSFER_NOT_FOUND = 'TRANSFER_NOT_FOUND',
-  TRANSFER_NOT_CANCELLABLE = 'TRANSFER_NOT_CANCELLABLE',
-  NETWORK_VALIDATION_FAILED = 'NETWORK_VALIDATION_FAILED',
+//   // Transfer errors
+//   INVALID_AMOUNT = 'INVALID_AMOUNT',
+//   INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
+//   TRANSFER_LIMIT_EXCEEDED = 'TRANSFER_LIMIT_EXCEEDED',
+//   INVALID_RECIPIENT = 'INVALID_RECIPIENT',
+//   TRANSFER_NOT_FOUND = 'TRANSFER_NOT_FOUND',
+//   TRANSFER_NOT_CANCELLABLE = 'TRANSFER_NOT_CANCELLABLE',
+//   NETWORK_VALIDATION_FAILED = 'NETWORK_VALIDATION_FAILED',
 
-  // General errors
-  INVALID_REQUEST = 'INVALID_REQUEST',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-}
+//   // General errors
+//   INVALID_REQUEST = 'INVALID_REQUEST',
+//   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+// }
 
-// Simulating network latency
-const NETWORK_DELAY = 800;
-const NETWORK_FAILURE_RATE = 0.05; // 5% chance of network failure
+// // Simulating network latency
+// const NETWORK_DELAY = 800;
+// const NETWORK_FAILURE_RATE = 0.05; // 5% chance of network failure
 
-/**
- * Mock API response structure
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
+// // Simulate network delay
+// const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Create a delayed promise to simulate network calls
- */
-const createDelayedPromise = <T>(
-  callback: () => ApiResponse<T>,
-  delay: number = NETWORK_DELAY
-): Promise<ApiResponse<T>> => {
-  return new Promise((resolve, reject) => {
-    // Simulate random network failures
-    if (Math.random() < NETWORK_FAILURE_RATE) {
-      setTimeout(() => {
-        reject({
-          success: false,
-          error: {
-            code: 'NETWORK_ERROR',
-            message: 'Network connection failed. Please try again.',
-          },
-        });
-      }, delay);
-      return;
-    }
+// // Simulate API error (about 10% of the time)
+// const simulateRandomError = (errorRate = 0.1) => {
+//   if (Math.random() < errorRate) {
+//     throw new Error('Network error: Failed to fetch data');
+//   }
+// };
 
-    setTimeout(() => {
-      try {
-        const result = callback();
-        resolve(result);
-      } catch (err) {
-        reject({
-          success: false,
-          error: {
-            code: 'UNKNOWN_ERROR',
-            message: 'An unexpected error occurred.',
-          },
-        });
-      }
-    }, delay);
-  });
-};
+// /**
+//  * Mock API response structure
+//  */
+// export interface ApiResponse<T> {
+//   data: T | null;
+//   error: string | null;
+// }
 
-/**
- * Authenticates a user with the specified authentication method
- */
-export const authenticateUser = async (
-  userId: string,
-  authMethod: string,
-  pin?: string
-): Promise<ApiResponse<{ token: string }>> => {
-  return createDelayedPromise<ApiResponse<{ token: string }>>(() => {
-    // Check if user exists
-    const user = getMockUserById(userId);
-    if (!user) {
-      return {
-        success: false,
-        error: {
-          code: ErrorCode.USER_NOT_FOUND,
-          message: 'User not found',
-        },
-      };
-    }
+// /**
+//  * Create a delayed promise to simulate network calls
+//  */
+// const createDelayedPromise = <T>(
+//   callback: () => ApiResponse<T>,
+//   delay: number = NETWORK_DELAY
+// ): Promise<ApiResponse<T>> => {
+//   return new Promise((resolve, reject) => {
+//     // Simulate random network failures
+//     if (Math.random() < NETWORK_FAILURE_RATE) {
+//       setTimeout(() => {
+//         reject({
+//           data: null,
+//           error: 'Network connection failed. Please try again.',
+//         });
+//       }, delay);
+//       return;
+//     }
 
-    // For PIN authentication, validate PIN
-    if (authMethod === 'PIN') {
-      if (!pin) {
-        return {
-          success: false,
-          error: {
-            code: ErrorCode.INVALID_CREDENTIALS,
-            message: 'PIN is required for PIN authentication',
-          },
-        };
-      }
+//     setTimeout(() => {
+//       try {
+//         const result = callback();
+//         resolve(result);
+//       } catch (err) {
+//         reject({
+//           data: null,
+//           error: 'An unexpected error occurred.',
+//         });
+//       }
+//     }, delay);
+//   });
+// };
 
-      // Use the validateUserCredentials function to check the PIN
-      const isValid = validateUserCredentials(userId, pin);
-      if (!isValid) {
-        return {
-          success: false,
-          error: {
-            code: ErrorCode.INVALID_CREDENTIALS,
-            message: 'Invalid PIN',
-          },
-        };
-      }
-    }
+// /**
+//  * Authenticates a user with the specified authentication method
+//  */
+// export const authenticateUser = async (
+//   userId: string,
+//   authMethod: string,
+//   pin?: string
+// ): Promise<ApiResponse<{ token: string }>> => {
+//   return createDelayedPromise<ApiResponse<{ token: string }>>(() => {
+//     // Check if user exists
+//     const user = getMockUserById(userId);
+//     if (!user) {
+//       return {
+//         data: null,
+//         error: ErrorCode.USER_NOT_FOUND,
+//       };
+//     }
 
-    // Success - generate a mock token
-    const token = `token_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+//     // For PIN authentication, validate PIN
+//     if (authMethod === 'PIN') {
+//       if (!pin) {
+//         return {
+//           data: null,
+//           error: ErrorCode.INVALID_CREDENTIALS,
+//         };
+//       }
 
-    return {
-      success: true,
-      data: { token },
-    };
-  });
-};
+//       // Use the validateUserCredentials function to check the PIN
+//       const isValid = validateUserCredentials(userId, pin);
+//       if (!isValid) {
+//         return {
+//           data: null,
+//           error: ErrorCode.INVALID_CREDENTIALS,
+//         };
+//       }
+//     }
 
-/**
- * Mock account validation API call
- */
-export const validateAccountNumber = async (
-  accountNo: string,
-  bankCode: string
-): Promise<ApiResponse<{ isValid: boolean; accountHolder?: string }>> => {
-  return createDelayedPromise(() => {
-    // Check if account number is valid format (at least 10 digits)
-    if (!accountNo || !/^\d{10,}$/.test(accountNo)) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_ACCOUNT_FORMAT',
-          message: 'Account number must be at least 10 digits.',
-        },
-      };
-    }
+//     // Success - generate a mock token
+//     const token = `token_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Check if bank code is valid (simple check, just ensuring it's not empty)
-    if (!bankCode) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_BANK_CODE',
-          message: 'Bank code is required.',
-        },
-      };
-    }
+//     return {
+//       data: { token },
+//       error: null,
+//     };
+//   });
+// };
 
-    // For testing purposes, make specific account numbers invalid
-    if (accountNo === '0000000000') {
-      return {
-        success: false,
-        error: {
-          code: 'ACCOUNT_NOT_FOUND',
-          message: 'Account not found in banking system.',
-        },
-      };
-    }
+// /**
+//  * Mock account validation API call
+//  */
+// export const validateAccountNumber = async (
+//   accountNo: string,
+//   bankCode: string
+// ): Promise<ApiResponse<{ isValid: boolean; accountHolder?: string }>> => {
+//   return createDelayedPromise(() => {
+//     // Check if account number is valid format (at least 10 digits)
+//     if (!accountNo || !/^\d{10,}$/.test(accountNo)) {
+//       return {
+//         data: null,
+//         error: ErrorCode.INVALID_ACCOUNT_FORMAT,
+//       };
+//     }
 
-    // Account validation passed
-    return {
-      success: true,
-      data: {
-        isValid: true,
-        accountHolder: accountNo.startsWith('1') ? 'JOHN DOE' : 'JANE SMITH',
-      },
-    };
-  });
-};
+//     // Check if bank code is valid (simple check, just ensuring it's not empty)
+//     if (!bankCode) {
+//       return {
+//         data: null,
+//         error: ErrorCode.INVALID_BANK_CODE,
+//       };
+//     }
 
-/**
- * Mock fetch accounts API call
- */
-export const fetchUserAccounts = async (userId: string): Promise<ApiResponse<Account[]>> => {
-  return createDelayedPromise(() => {
-    if (!userId) {
-      return {
-        success: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User ID is required.',
-        },
-      };
-    }
+//     // For testing purposes, make specific account numbers invalid
+//     if (accountNo === '0000000000') {
+//       return {
+//         data: null,
+//         error: ErrorCode.ACCOUNT_NOT_FOUND,
+//       };
+//     }
 
-    return {
-      success: true,
-      data: getMockAccounts(userId),
-    };
-  });
-};
+//     // Account validation passed
+//     return {
+//       data: {
+//         isValid: true,
+//         accountHolder: accountNo.startsWith('1') ? 'JOHN DOE' : 'JANE SMITH',
+//       },
+//       error: null,
+//     };
+//   });
+// };
 
-/**
- * Mock fetch recipients API call
- */
-export const fetchUserRecipients = async (userId: string): Promise<ApiResponse<Recipient[]>> => {
-  return createDelayedPromise(() => {
-    if (!userId) {
-      return {
-        success: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User ID is required.',
-        },
-      };
-    }
+// /**
+//  * Mock fetch accounts API call
+//  */
+// export const fetchUserAccounts = async (userId: string): Promise<ApiResponse<Account[]>> => {
+//   return createDelayedPromise(() => {
+//     if (!userId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.USER_NOT_FOUND,
+//       };
+//     }
 
-    return {
-      success: true,
-      data: getMockRecipients(userId),
-    };
-  });
-};
+//     return {
+//       data: getMockAccounts(userId),
+//       error: null,
+//     };
+//   });
+// };
 
-/**
- * Mock transfer initiation API call
- */
-export const initiateTransfer = async (
-  userId: string,
-  transferRequest: TransferRequestDto
-): Promise<ApiResponse<Transfer>> => {
-  return createDelayedPromise(() => {
-    // Check if user ID exists
-    if (!userId) {
-      return {
-        success: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User ID is required.',
-        },
-      };
-    }
+// /**
+//  * Mock fetch recipients API call
+//  */
+// export const fetchUserRecipients = async (userId: string): Promise<ApiResponse<Recipient[]>> => {
+//   return createDelayedPromise(() => {
+//     if (!userId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.USER_NOT_FOUND,
+//       };
+//     }
 
-    // Check if account ID exists
-    if (!transferRequest.accountId) {
-      return {
-        success: false,
-        error: {
-          code: 'ACCOUNT_NOT_FOUND',
-          message: 'Source account ID is required.',
-        },
-      };
-    }
+//     return {
+//       data: getMockRecipients(userId),
+//       error: null,
+//     };
+//   });
+// };
 
-    // Check if channel is specified
-    if (!transferRequest.channel) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_CHANNEL',
-          message: 'Transfer channel is required.',
-        },
-      };
-    }
+// /**
+//  * Mock transfer initiation API call
+//  */
+// export const initiateTransfer = async (
+//   userId: string,
+//   transferRequest: TransferRequestDto
+// ): Promise<ApiResponse<Transfer>> => {
+//   return createDelayedPromise(() => {
+//     // Check if user ID exists
+//     if (!userId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.USER_NOT_FOUND,
+//       };
+//     }
 
-    // Check if amount is valid
-    if (!transferRequest.amountCents || transferRequest.amountCents <= 0) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_AMOUNT',
-          message: 'Transfer amount must be greater than zero.',
-        },
-      };
-    }
+//     // Check if account ID exists
+//     if (!transferRequest.accountId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.ACCOUNT_NOT_FOUND,
+//       };
+//     }
 
-    // Validate recipient details based on channel
-    if (transferRequest.channel === Channel.BANK_ACCOUNT) {
-      if (
-        !transferRequest.recipientId &&
-        (!transferRequest.accountNo || !transferRequest.bankCode)
-      ) {
-        return {
-          success: false,
-          error: {
-            code: 'INVALID_RECIPIENT',
-            message: 'Either recipient ID or account details must be provided.',
-          },
-        };
-      }
-    } else if (transferRequest.channel === Channel.MOBILE_NUMBER) {
-      if (!transferRequest.recipientId && !transferRequest.mobileNumber) {
-        return {
-          success: false,
-          error: {
-            code: 'INVALID_RECIPIENT',
-            message: 'Either recipient ID or mobile number must be provided.',
-          },
-        };
-      }
-    }
+//     // Check if channel is specified
+//     if (!transferRequest.channel) {
+//       return {
+//         data: null,
+//         error: ErrorCode.INVALID_CHANNEL,
+//       };
+//     }
 
-    // Create a new transfer object
-    const newTransfer: Transfer = {
-      id: generateId('transfer'),
-      accountId: transferRequest.accountId,
-      channel: transferRequest.channel,
-      recipientId: transferRequest.recipientId,
-      amountCents: transferRequest.amountCents,
-      note: transferRequest.note,
-      status: TransferStatus.PENDING,
-      initiatedAt: new Date().toISOString(),
-      referenceCode: generateReferenceCode(),
-    };
+//     // Check if amount is valid
+//     if (!transferRequest.amountCents || transferRequest.amountCents <= 0) {
+//       return {
+//         data: null,
+//         error: ErrorCode.INVALID_AMOUNT,
+//       };
+//     }
 
-    return {
-      success: true,
-      data: newTransfer,
-    };
-  });
-};
+//     // Validate recipient details based on channel
+//     if (transferRequest.channel === Channel.BANK_ACCOUNT) {
+//       if (
+//         !transferRequest.recipientId &&
+//         (!transferRequest.accountNo || !transferRequest.bankCode)
+//       ) {
+//         return {
+//           data: null,
+//           error: ErrorCode.INVALID_RECIPIENT,
+//         };
+//       }
+//     } else if (transferRequest.channel === Channel.MOBILE_NUMBER) {
+//       if (!transferRequest.recipientId && !transferRequest.mobileNumber) {
+//         return {
+//           data: null,
+//           error: ErrorCode.INVALID_RECIPIENT,
+//         };
+//       }
+//     }
 
-/**
- * Mock confirm transfer API call
- */
-export const confirmTransfer = async (
-  transferId: UUID,
-  accountId: UUID,
-  accountBalance: number
-): Promise<ApiResponse<Transfer>> => {
-  return createDelayedPromise(() => {
-    // Check if transfer ID exists
-    if (!transferId) {
-      return {
-        success: false,
-        error: {
-          code: 'TRANSFER_NOT_FOUND',
-          message: 'Transfer ID is required.',
-        },
-      };
-    }
+//     // Create a new transfer object
+//     const newTransfer: Transfer = {
+//       id: generateId('transfer'),
+//       accountId: transferRequest.accountId,
+//       channel: transferRequest.channel,
+//       recipientId: transferRequest.recipientId,
+//       amountCents: transferRequest.amountCents,
+//       note: transferRequest.note,
+//       status: TransferStatus.PENDING,
+//       initiatedAt: new Date().toISOString(),
+//       referenceCode: generateReferenceCode(),
+//     };
 
-    // Simulating a transfer that doesn't exist
-    if (transferId === 'transfer-invalid') {
-      return {
-        success: false,
-        error: {
-          code: 'TRANSFER_NOT_FOUND',
-          message: 'Transfer not found.',
-        },
-      };
-    }
+//     return {
+//       data: newTransfer,
+//       error: null,
+//     };
+//   });
+// };
 
-    // Get transfer amount from transfer ID (mocked - for real app would fetch from DB)
-    // For demonstration, we'll extract a fake amount from the ID
-    const amountCents = parseInt(transferId.split('-').pop() || '10000', 10);
+// /**
+//  * Mock confirm transfer API call
+//  */
+// export const confirmTransfer = async (
+//   transferId: UUID,
+//   accountId: UUID,
+//   accountBalance: number
+// ): Promise<ApiResponse<Transfer>> => {
+//   return createDelayedPromise(() => {
+//     // Check if transfer ID exists
+//     if (!transferId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.TRANSFER_NOT_FOUND,
+//       };
+//     }
 
-    // Check sufficient funds
-    if (accountBalance < amountCents) {
-      return {
-        success: false,
-        data: {
-          id: transferId,
-          accountId,
-          channel: Channel.BANK_ACCOUNT,
-          amountCents,
-          status: TransferStatus.FAILED,
-          failReason: 'INSUFFICIENT_FUNDS',
-          initiatedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        },
-      };
-    }
+//     // Simulating a transfer that doesn't exist
+//     if (transferId === 'transfer-invalid') {
+//       return {
+//         data: null,
+//         error: ErrorCode.TRANSFER_NOT_FOUND,
+//       };
+//     }
 
-    // Simulating a specific transfer ID that always fails network validation
-    if (transferId.includes('network-fail')) {
-      return {
-        success: false,
-        error: {
-          code: 'NETWORK_VALIDATION_FAILED',
-          message: 'Network validation failed for this transfer.',
-        },
-      };
-    }
+//     // Get transfer amount from transfer ID (mocked - for real app would fetch from DB)
+//     // For demonstration, we'll extract a fake amount from the ID
+//     const amountCents = parseInt(transferId.split('-').pop() || '10000', 10);
 
-    // Successful confirmation
-    return {
-      success: true,
-      data: {
-        id: transferId,
-        accountId,
-        channel: Channel.BANK_ACCOUNT,
-        amountCents,
-        status: TransferStatus.SUCCESS,
-        initiatedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        referenceCode: generateReferenceCode(),
-      },
-    };
-  });
-};
+//     // Check sufficient funds
+//     if (accountBalance < amountCents) {
+//       return {
+//         data: {
+//           id: transferId,
+//           accountId,
+//           channel: Channel.BANK_ACCOUNT,
+//           amountCents,
+//           status: TransferStatus.FAILED,
+//           failReason: 'INSUFFICIENT_FUNDS',
+//           initiatedAt: new Date().toISOString(),
+//           completedAt: new Date().toISOString(),
+//         },
+//         error: null,
+//       };
+//     }
 
-/**
- * Mock cancel transfer API call
- */
-export const cancelTransfer = async (
-  transferId: UUID
-): Promise<ApiResponse<{ cancelled: boolean }>> => {
-  return createDelayedPromise(() => {
-    // Check if transfer ID exists
-    if (!transferId) {
-      return {
-        success: false,
-        error: {
-          code: 'TRANSFER_NOT_FOUND',
-          message: 'Transfer ID is required.',
-        },
-      };
-    }
+//     // Simulating a specific transfer ID that always fails network validation
+//     if (transferId.includes('network-fail')) {
+//       return {
+//         data: null,
+//         error: ErrorCode.NETWORK_VALIDATION_FAILED,
+//       };
+//     }
 
-    // Simulating a transfer that can't be cancelled
-    if (transferId.includes('processing')) {
-      return {
-        success: false,
-        error: {
-          code: 'TRANSFER_NOT_CANCELLABLE',
-          message: 'Transfer is already processing and cannot be cancelled.',
-        },
-      };
-    }
+//     // Successful confirmation
+//     return {
+//       data: {
+//         id: transferId,
+//         accountId,
+//         channel: Channel.BANK_ACCOUNT,
+//         amountCents,
+//         status: TransferStatus.SUCCESS,
+//         initiatedAt: new Date().toISOString(),
+//         completedAt: new Date().toISOString(),
+//         referenceCode: generateReferenceCode(),
+//       },
+//       error: null,
+//     };
+//   });
+// };
 
-    // Successful cancellation
-    return {
-      success: true,
-      data: {
-        cancelled: true,
-      },
-    };
-  });
-};
+// /**
+//  * Mock cancel transfer API call
+//  */
+// export const cancelTransfer = async (
+//   transferId: UUID
+// ): Promise<ApiResponse<{ cancelled: boolean }>> => {
+//   return createDelayedPromise(() => {
+//     // Check if transfer ID exists
+//     if (!transferId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.TRANSFER_NOT_FOUND,
+//       };
+//     }
 
-/**
- * Mock get transfer status API call
- */
-export const getTransferStatus = async (
-  transferId: UUID
-): Promise<ApiResponse<{ status: TransferStatus; failReason?: FailReason }>> => {
-  return createDelayedPromise(() => {
-    // Check if transfer ID exists
-    if (!transferId) {
-      return {
-        success: false,
-        error: {
-          code: 'TRANSFER_NOT_FOUND',
-          message: 'Transfer ID is required.',
-        },
-      };
-    }
+//     // Simulating a transfer that can't be cancelled
+//     if (transferId.includes('processing')) {
+//       return {
+//         data: null,
+//         error: ErrorCode.TRANSFER_NOT_CANCELLABLE,
+//       };
+//     }
 
-    // Simulating different transfer statuses based on transfer ID for testing
-    if (transferId.includes('pending')) {
-      return {
-        success: true,
-        data: {
-          status: TransferStatus.PENDING,
-        },
-      };
-    }
+//     // Successful cancellation
+//     return {
+//       data: {
+//         cancelled: true,
+//       },
+//       error: null,
+//     };
+//   });
+// };
 
-    if (transferId.includes('processing')) {
-      return {
-        success: true,
-        data: {
-          status: TransferStatus.PROCESSING,
-        },
-      };
-    }
+// /**
+//  * Mock get transfer status API call
+//  */
+// export const getTransferStatus = async (
+//   transferId: UUID
+// ): Promise<ApiResponse<{ status: TransferStatus; failReason?: FailReason }>> => {
+//   return createDelayedPromise(() => {
+//     // Check if transfer ID exists
+//     if (!transferId) {
+//       return {
+//         data: null,
+//         error: ErrorCode.TRANSFER_NOT_FOUND,
+//       };
+//     }
 
-    if (transferId.includes('failed')) {
-      return {
-        success: true,
-        data: {
-          status: TransferStatus.FAILED,
-          failReason: 'NETWORK_ERROR',
-        },
-      };
-    }
+//     // Simulating different transfer statuses based on transfer ID for testing
+//     if (transferId.includes('pending')) {
+//       return {
+//         data: {
+//           status: TransferStatus.PENDING,
+//         },
+//         error: null,
+//       };
+//     }
 
-    // Default to success
-    return {
-      success: true,
-      data: {
-        status: TransferStatus.SUCCESS,
-      },
-    };
-  });
-};
+//     if (transferId.includes('processing')) {
+//       return {
+//         data: {
+//           status: TransferStatus.PROCESSING,
+//         },
+//         error: null,
+//       };
+//     }
+
+//     if (transferId.includes('failed')) {
+//       return {
+//         data: {
+//           status: TransferStatus.FAILED,
+//           failReason: 'NETWORK_ERROR',
+//         },
+//         error: null,
+//       };
+//     }
+
+//     // Default to success
+//     return {
+//       data: {
+//         status: TransferStatus.SUCCESS,
+//       },
+//       error: null,
+//     };
+//   });
+// };
+
+// export const api = {
+//   /**
+//    * Authentication API
+//    */
+//   auth: {
+//     // Authenticate user
+//     authenticate: async (): Promise<ApiResponse<{ success: boolean }>> => {
+//       try {
+//         // Simulate API call delay
+//         await delay(1000);
+
+//         // Simulate possible error
+//         simulateRandomError();
+
+//         // Return success response
+//         return {
+//           data: { success: true },
+//           error: null,
+//         };
+//       } catch (error) {
+//         console.error('Auth error:', error);
+//         return {
+//           data: null,
+//           error: error instanceof Error ? error.message : 'Unknown error occurred',
+//         };
+//       }
+//     },
+//   },
+
+//   /**
+//    * Account API
+//    */
+//   account: {
+//     // Get account details
+//     getAccount: async (): Promise<ApiResponse<Account>> => {
+//       try {
+//         // Simulate API call delay
+//         await delay(800);
+
+//         // Simulate possible error
+//         simulateRandomError();
+
+//         // Get mock account
+//         const account = getMockAccount();
+
+//         return {
+//           data: account,
+//           error: null,
+//         };
+//       } catch (error) {
+//         console.error('Account fetch error:', error);
+//         return {
+//           data: null,
+//           error: error instanceof Error ? error.message : 'Unknown error occurred',
+//         };
+//       }
+//     },
+//   },
+
+//   /**
+//    * Recipients API
+//    */
+//   recipients: {
+//     // Get all recipients
+//     getRecipients: async (): Promise<ApiResponse<Recipient[]>> => {
+//       try {
+//         // Simulate API call delay
+//         await delay(600);
+
+//         // Simulate possible error
+//         simulateRandomError();
+
+//         return {
+//           data: mockRecipients,
+//           error: null,
+//         };
+//       } catch (error) {
+//         console.error('Recipients fetch error:', error);
+//         return {
+//           data: null,
+//           error: error instanceof Error ? error.message : 'Unknown error occurred',
+//         };
+//       }
+//     },
+//   },
+
+//   /**
+//    * Transfers API
+//    */
+//   transfers: {
+//     // Get paginated transfers
+//     getTransfers: async (
+//       page: number = 0,
+//       limit: number = 10
+//     ): Promise<
+//       ApiResponse<{
+//         transfers: Transfer[];
+//         pagination: TransferPaginationParams;
+//       }>
+//     > => {
+//       try {
+//         // Simulate API call delay
+//         await delay(700);
+
+//         // Simulate possible error
+//         simulateRandomError();
+
+//         const { transfers, hasMore } = getPaginatedTransfers(page, limit);
+
+//         return {
+//           data: {
+//             transfers,
+//             pagination: {
+//               page,
+//               limit,
+//               hasMore,
+//             },
+//           },
+//           error: null,
+//         };
+//       } catch (error) {
+//         console.error('Transfers fetch error:', error);
+//         return {
+//           data: null,
+//           error: error instanceof Error ? error.message : 'Unknown error occurred',
+//         };
+//       }
+//     },
+
+//     // Create a new transfer
+//     createTransfer: async (request: NewTransferRequest): Promise<ApiResponse<Transfer>> => {
+//       try {
+//         // Simulate API call delay
+//         await delay(1200);
+
+//         // Simulate possible error
+//         simulateRandomError(0.15); // Slightly higher error rate for transfers
+
+//         // Create new transfer with ID and timestamp
+//         const newTransfer = {
+//           ...request,
+//           id: `transfer-${Date.now()}`,
+//           createdAt: new Date().toISOString(),
+//         };
+
+//         // Add to mock data
+//         addTransfer(newTransfer);
+
+//         return {
+//           data: newTransfer,
+//           error: null,
+//         };
+//       } catch (error) {
+//         console.error('Transfer creation error:', error);
+//         return {
+//           data: null,
+//           error: error instanceof Error ? error.message : 'Unknown error occurred',
+//         };
+//       }
+//     },
+//   },
+// };

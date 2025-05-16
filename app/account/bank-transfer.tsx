@@ -1,32 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import { MALAYSIAN_BANKS, TRANSACTION_TYPES } from '~/mocks';
-import { Channel } from '~/types/models';
-import Loader from '~/components/Loader';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TRANSACTION_TYPES } from '../../mocks/bankData';
+import { MALAYSIAN_BANKS } from '../../mocks/bankData';
+import { TransactionType } from '../../types/models';
+import Loader from '../../components/Loader';
+import PinInput from '../../components/PinInput';
 
 type BankTransferFormValues = {
   recipientBank: string;
-  accountNumber: string;
-  transactionType: string;
+  accountNo: string;
+  transactionType: TransactionType;
 };
 
 export default function BankTransfer() {
   const router = useRouter();
+
   const [isAccountNumberFocused, setIsAccountNumberFocused] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [transferData, setTransferData] = useState<BankTransferFormValues | null>(null);
+
+  // Clear pin error when pin modal visibility changes
+  useEffect(() => {
+    if (!showPinModal) {
+      setPinError(null);
+    }
+  }, [showPinModal]);
 
   // Form for bank transfers
   const { control, handleSubmit, watch, setValue } = useForm<BankTransferFormValues>({
     defaultValues: {
       recipientBank: '',
-      accountNumber: '',
-      transactionType: '',
+      accountNo: '',
+      transactionType: 'Fund Transfer' as TransactionType,
     },
   });
 
@@ -35,41 +47,66 @@ export default function BankTransfer() {
   // Form validation
   const isFormValid =
     watchedValues.recipientBank !== '' &&
-    watchedValues.accountNumber !== '' &&
-    watchedValues.transactionType !== '';
+    watchedValues.accountNo !== '' &&
+    !!watchedValues.transactionType;
 
-  // Handle bank transfer form submission
+  // Handle bank transfer form validation and show PIN modal
   const onSubmitBankTransfer = (data: BankTransferFormValues) => {
     // Validate account number has at least 4 digits
-    if (data.accountNumber.length < 4) {
-      Alert.alert('Invalid Account Number', 'Account number must be at least 4 digits');
+    if (data.accountNo.length < 4) {
+      Alert.alert('Invalid Input', 'Account number must be at least 4 digits');
       return;
     }
 
+    // Store transfer data and show PIN modal
+    setTransferData(data);
+    setPinError(null);
+    setShowPinModal(true);
+  };
+
+  // Handle PIN completion
+  const handlePinComplete = async (pin: string) => {
+    if (!transferData) return;
+
     setLoading(true);
 
-    // Small delay to simulate processing
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Simulate authentication delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Navigate to payment page with transfer details
-      router.push({
-        pathname: '/account/payment',
-        params: {
-          recipientBank: data.recipientBank,
-          accountNumber: data.accountNumber,
-          transactionType: data.transactionType,
-          channel: Channel.BANK_ACCOUNT,
-        },
-      });
-    }, 500);
+      // For demo, we'll auto-authenticate
+      setShowPinModal(false);
+
+      setTimeout(() => {
+        setLoading(false);
+
+        // Navigate to payment page with transfer details
+        router.push({
+          pathname: '/account/payment',
+          params: {
+            recipientBank: transferData.recipientBank,
+            accountNo: transferData.accountNo,
+            transactionType: transferData.transactionType,
+          },
+        });
+      }, 500);
+    } catch (error) {
+      setLoading(false);
+      console.error('Authentication error:', error);
+      Alert.alert('Authentication Error', 'Authentication failed. Please try again.');
+      setPinError('Authentication failed. Please try again.');
+    }
+  };
+
+  // Handle PIN modal cancellation
+  const handlePinCancel = () => {
+    setShowPinModal(false);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white pt-10">
       {/* Header */}
-
-      <View className="flex-row items-center justify-between px-4 py-4">
+      <View className="flex-row items-center justify-between px-4 py-4 pt-12">
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
@@ -108,14 +145,14 @@ export default function BankTransfer() {
           <Text className="text-sm font-medium text-gray-500">Account Number</Text>
           <Controller
             control={control}
-            name="accountNumber"
+            name="accountNo"
             rules={{
               required: true,
             }}
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
                 className={`border-b py-3 text-base text-gray-700 ${
-                  isAccountNumberFocused ? 'border-b-2 border-primary' : 'border-gray-300'
+                  isAccountNumberFocused ? 'border-b-2 border-blue-500' : 'border-gray-300'
                 }`}
                 placeholder="Account number"
                 placeholderTextColor="#aaa"
@@ -138,14 +175,14 @@ export default function BankTransfer() {
           <Controller
             control={control}
             name="transactionType"
-            rules={{ validate: (value) => value !== '' }}
+            rules={{ required: true }}
             render={({ field: { onChange, value } }) => (
               <TouchableOpacity
                 className="flex-row items-center justify-between border-b border-gray-300 py-3"
                 onPress={() => {
                   setShowTypeModal(true);
                 }}>
-                <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
+                <Text className={`text-base ${!value ? 'text-gray-400' : 'text-gray-700'}`}>
                   {value || 'Select type'}
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color="#aaa" />
@@ -158,7 +195,7 @@ export default function BankTransfer() {
       {/* Next Button */}
       <View className="px-4 py-8">
         <TouchableOpacity
-          className={`w-full rounded-full py-4 ${isFormValid ? 'bg-primary' : 'bg-primary/30'}`}
+          className={`w-full rounded-full py-4 ${isFormValid ? 'bg-blue-500' : 'bg-blue-300'}`}
           onPress={handleSubmit(onSubmitBankTransfer)}
           disabled={!isFormValid}>
           <Text className="text-center text-base font-semibold text-white">Next</Text>
@@ -185,7 +222,7 @@ export default function BankTransfer() {
                   key={index}
                   className={`rounded-xl border p-4 ${
                     watchedValues.recipientBank === bank
-                      ? 'border-2 border-primary'
+                      ? 'border-2 border-blue-500'
                       : 'border-gray-200'
                   }`}
                   onPress={() => {
@@ -194,7 +231,7 @@ export default function BankTransfer() {
                   }}>
                   <Text
                     className={`text-base ${
-                      watchedValues.recipientBank === bank ? 'font-semibold text-primary' : ''
+                      watchedValues.recipientBank === bank ? 'font-semibold text-blue-500' : ''
                     }`}>
                     {bank}
                   </Text>
@@ -229,16 +266,16 @@ export default function BankTransfer() {
                     key={index}
                     className={`w-full rounded-xl border p-4 ${
                       watchedValues.transactionType === type
-                        ? 'border-2 border-primary'
+                        ? 'border-2 border-blue-500'
                         : 'border-gray-200'
                     }`}
                     onPress={() => {
-                      setValue('transactionType', type);
+                      setValue('transactionType', type as TransactionType);
                       setShowTypeModal(false);
                     }}>
                     <Text
                       className={`text-center text-base ${
-                        watchedValues.transactionType === type ? 'font-semibold text-primary' : ''
+                        watchedValues.transactionType === type ? 'font-semibold text-blue-500' : ''
                       }`}>
                       {type}
                     </Text>
@@ -250,8 +287,19 @@ export default function BankTransfer() {
         </TouchableOpacity>
       </Modal>
 
+      {/* PIN Input Modal */}
+      {showPinModal && (
+        <Modal
+          animationType="slide"
+          presentationStyle="fullScreen"
+          visible={showPinModal}
+          onRequestClose={handlePinCancel}>
+          <PinInput onComplete={handlePinComplete} onCancel={handlePinCancel} error={pinError} />
+        </Modal>
+      )}
+
       {/* Loading indicator */}
       {loading && <Loader text="Processing..." />}
-    </SafeAreaView>
+    </View>
   );
 }

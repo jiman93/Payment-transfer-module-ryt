@@ -4,8 +4,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import Loader from '../../components/Loader';
-import { useTransfer, useAccounts } from '~/contexts';
-import { Channel } from '~/types/models';
+import { useAccount, useTransferForm } from '../../store/exports';
+import { TransactionType } from '../../types/models';
 
 // Form type definition
 type PaymentFormValues = {
@@ -17,18 +17,10 @@ type PaymentFormValues = {
 export default function Payment() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const {
-    transferId,
-    recipientBank,
-    accountNumber,
-    transactionType,
-    recipientName,
-    mobileNumber,
-    channel,
-  } = params;
+  const { recipientBank, accountNo, transactionType, recipientName, mobileNumber } = params;
 
-  const { transfer, loading: transferLoading, error: transferError } = useTransfer();
-  const { selectedAccount } = useAccounts();
+  const { account } = useAccount();
+  const { submitTransfer, isSubmitting } = useTransferForm();
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,7 +30,7 @@ export default function Payment() {
   const [isDetailsFocused, setIsDetailsFocused] = useState(false);
 
   // Determine transfer type from params
-  const isMobileTransfer = channel === Channel.MOBILE_NUMBER || mobileNumber;
+  const isMobileTransfer = !!mobileNumber;
 
   // Set loading to false after component mounts
   useEffect(() => {
@@ -48,15 +40,6 @@ export default function Payment() {
 
     return () => clearTimeout(timer);
   }, []);
-
-  // Check if we have a valid transfer
-  useEffect(() => {
-    if (transferId && !transfer.currentTransfer && !transferLoading) {
-      Alert.alert('Transfer Error', 'Unable to find the transfer details. Please try again.', [
-        { text: 'Go Back', onPress: () => router.back() },
-      ]);
-    }
-  }, [transferId, transfer.currentTransfer, transferLoading]);
 
   // Quick reference options
   const referenceOptions = ['Fund Transfer', 'Gift', 'Meals', 'Others'];
@@ -118,15 +101,17 @@ export default function Payment() {
     });
   };
 
-  if (transferLoading || isLoading) {
+  if (isSubmitting || isLoading) {
     return <Loader text="Loading payment details..." />;
   }
 
-  if (transferError) {
+  if (!account) {
     return (
       <View className="flex-1 items-center justify-center bg-white p-4">
-        <Text className="mb-4 text-center text-red-500">{transferError}</Text>
-        <TouchableOpacity className="rounded-xl bg-primary px-6 py-3" onPress={() => router.back()}>
+        <Text className="mb-4 text-center text-red-500">Account information not available</Text>
+        <TouchableOpacity
+          className="rounded-xl bg-blue-500 px-6 py-3"
+          onPress={() => router.back()}>
           <Text className="font-medium text-white">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -160,7 +145,7 @@ export default function Payment() {
               // Bank transfer details
               <View>
                 <View className="flex-row items-center gap-2">
-                  <Text className="font-medium">{accountNumber}</Text>
+                  <Text className="font-medium">{accountNo}</Text>
                   <Text className="font-medium">•</Text>
                   <Text className="font-medium">{recipientBank}</Text>
                 </View>
@@ -175,11 +160,11 @@ export default function Payment() {
         </View>
 
         {/* Account Balance */}
-        {selectedAccount && (
+        {account && (
           <View className="mb-4 rounded-lg bg-gray-100 p-3">
             <Text className="text-sm text-gray-600">Available Balance</Text>
             <Text className="text-lg font-bold">
-              {selectedAccount.currency} {(selectedAccount.balanceCents / 100).toFixed(2)}
+              {account.currency} {(account.balanceCents / 100).toFixed(2)}
             </Text>
           </View>
         )}
@@ -199,7 +184,7 @@ export default function Payment() {
                 }
 
                 // Check if amount exceeds available balance
-                if (selectedAccount && numValue * 100 > selectedAccount.balanceCents) {
+                if (account && numValue * 100 > account.balanceCents) {
                   return 'Amount exceeds available balance';
                 }
 
@@ -211,14 +196,12 @@ export default function Payment() {
                 <View
                   className={`flex-row items-center border-b pb-2 ${
                     isAmountFocused
-                      ? 'border-b-2 border-primary'
+                      ? 'border-b-2 border-blue-500'
                       : errors.amount
                         ? 'border-b-2 border-red-500'
                         : 'border-gray-300'
                   }`}>
-                  <Text className="mr-2 text-lg font-medium">
-                    {selectedAccount?.currency || 'RM'}
-                  </Text>
+                  <Text className="mr-2 text-lg font-medium">{account?.currency || 'RM'}</Text>
                   <TextInput
                     className="flex-1 text-right text-2xl font-semibold"
                     keyboardType="numeric"
@@ -256,7 +239,7 @@ export default function Payment() {
                 <TextInput
                   className={`border-b py-2 text-base ${
                     isReferenceFocused
-                      ? 'border-b-2 border-primary'
+                      ? 'border-b-2 border-blue-500'
                       : errors.reference
                         ? 'border-b-2 border-red-500'
                         : 'border-gray-300'
@@ -301,7 +284,7 @@ export default function Payment() {
             render={({ field: { onChange, value, onBlur } }) => (
               <TextInput
                 className={`h-20 rounded-xl p-4 text-gray-700 ${
-                  isDetailsFocused ? 'border-2 border-primary bg-gray-50' : 'bg-gray-100'
+                  isDetailsFocused ? 'border-2 border-blue-500 bg-gray-50' : 'bg-gray-100'
                 }`}
                 multiline
                 numberOfLines={4}
@@ -325,7 +308,7 @@ export default function Payment() {
       <View className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4">
         <TouchableOpacity
           className={`rounded-2xl py-4 ${
-            watchedAmount && watchedReference ? 'bg-primary' : 'bg-gray-300'
+            watchedAmount && watchedReference ? 'bg-blue-500' : 'bg-gray-300'
           }`}
           disabled={!watchedAmount || !watchedReference}
           onPress={handleSubmit(onSubmit)}>

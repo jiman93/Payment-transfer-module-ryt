@@ -3,84 +3,51 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import Loader from '../../components/Loader';
-import { useTransfer } from '~/contexts';
-import { TransferStatus, Channel } from '~/types/models';
+import { useTransferForm } from '../../store/exports';
+import { TransactionType } from '../../types/models';
 
 export default function Review() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const {
-    transferId,
     recipientBank,
-    accountNumber,
+    accountNo,
     transactionType,
     amount,
     reference,
     note,
     recipientName,
     mobileNumber,
-    channel,
   } = params;
 
-  const { transfer, confirmCurrentTransfer, loading, error, pollTransferStatus } = useTransfer();
+  const { confirmTransfer, isSubmitting } = useTransferForm();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
 
   // Determine transfer type
-  const isMobileTransfer = channel === Channel.MOBILE_NUMBER || mobileNumber;
-
-  // Check if we have a valid transfer
-  useEffect(() => {
-    if (!transfer.currentTransfer && !loading) {
-      Alert.alert('Transfer Error', 'Unable to find the transfer details. Please try again.', [
-        { text: 'Go Back', onPress: () => router.replace('/account') },
-      ]);
-    }
-  }, [transfer.currentTransfer, loading]);
+  const isMobileTransfer = !!mobileNumber;
 
   const handleConfirm = async () => {
     setIsLoading(true);
     setConfirmationError(null);
 
     try {
-      // Confirm the transfer directly without authentication
-      const confirmedTransfer = await confirmCurrentTransfer();
+      // Confirm the transfer
+      const success = await confirmTransfer({
+        recipientName: recipientName as string,
+        accountNo: accountNo as string,
+        recipientBank: recipientBank as string,
+        amount: parseFloat(amount as string),
+        reference: reference as string,
+        note: note as string,
+        transactionType: transactionType as TransactionType,
+        mobileNumber: mobileNumber as string,
+      });
 
-      if (confirmedTransfer) {
-        // Poll for transfer status
-        let status = confirmedTransfer.status;
-
-        // If transfer is processing, poll a few times to check status
-        if (status === TransferStatus.PROCESSING) {
-          let attempts = 0;
-          const maxAttempts = 3;
-
-          while (status === TransferStatus.PROCESSING && attempts < maxAttempts) {
-            // Wait a second between polls
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Poll for latest status
-            const newStatus = await pollTransferStatus();
-            if (newStatus) {
-              status = newStatus;
-            }
-
-            attempts++;
-          }
-        }
-
-        // Navigate to appropriate page based on status
-        if (status === TransferStatus.SUCCESS) {
-          router.replace('/account/success');
-        } else if (status === TransferStatus.FAILED) {
-          // Handle failed transfer
-          setConfirmationError('Transfer failed. Please try again later.');
-        } else {
-          // Transfer is still processing
-          router.replace('/account/processing');
-        }
+      if (success) {
+        router.replace('/account/success');
       } else {
-        setConfirmationError('Failed to confirm transfer. Please try again.');
+        setConfirmationError('Transfer failed. Please try again later.');
       }
     } catch (err) {
       console.error('Transfer confirmation error:', err);
@@ -141,7 +108,7 @@ export default function Review() {
                   // Bank transfer details
                   <View>
                     <Text className="text-sm text-gray-700">
-                      {accountNumber} • {recipientBank}
+                      {accountNo} • {recipientBank}
                     </Text>
                     <Text className="text-sm text-gray-500">{transactionType}</Text>
                   </View>
@@ -192,15 +159,15 @@ export default function Review() {
       {/* Bottom Buttons */}
       <View className="absolute bottom-8 left-0 right-0 px-4">
         <TouchableOpacity
-          className="w-full rounded-full bg-primary py-4"
+          className="w-full rounded-full bg-blue-500 py-4"
           onPress={handleConfirm}
-          disabled={isLoading || loading}>
+          disabled={isLoading || isSubmitting}>
           <Text className="text-center text-base font-semibold text-white">Confirm</Text>
         </TouchableOpacity>
       </View>
 
       {/* Loading Spinner Overlay */}
-      {(isLoading || loading) && <Loader text="Processing transfer..." />}
+      {(isLoading || isSubmitting) && <Loader text="Processing transfer..." />}
     </View>
   );
 }

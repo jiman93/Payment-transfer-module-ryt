@@ -1,15 +1,15 @@
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTransfer } from '~/contexts';
+import { useTransferForm } from '../../store/exports';
 
 export default function Success() {
   const router = useRouter();
-  const { transfer, clearCurrentTransfer } = useTransfer();
+  const { lastTransfer, resetForm } = useTransferForm();
 
   // Handle going back to home
   const handleDone = () => {
-    clearCurrentTransfer();
+    resetForm();
     router.replace('/account');
   };
 
@@ -38,30 +38,24 @@ export default function Success() {
         </Text>
 
         {/* Transaction Details */}
-        {transfer.currentTransfer && (
+        {lastTransfer && (
           <View className="mt-6 w-full rounded-xl bg-gray-50 p-5">
             <Text className="mb-4 text-center text-lg font-medium">Transaction Details</Text>
 
             <View className="space-y-3">
               <View className="flex-row justify-between">
                 <Text className="text-gray-500">Reference</Text>
-                <Text className="font-medium">
-                  {transfer.currentTransfer.referenceCode || 'N/A'}
-                </Text>
+                <Text className="font-medium">{lastTransfer.reference || 'N/A'}</Text>
               </View>
 
               <View className="flex-row justify-between">
                 <Text className="text-gray-500">Amount</Text>
-                <Text className="font-medium">
-                  RM {(transfer.currentTransfer.amountCents / 100).toFixed(2)}
-                </Text>
+                <Text className="font-medium">RM {lastTransfer.amount.toFixed(2)}</Text>
               </View>
 
               <View className="flex-row justify-between">
                 <Text className="text-gray-500">Date</Text>
-                <Text className="font-medium">
-                  {new Date(transfer.currentTransfer.initiatedAt).toLocaleDateString()}
-                </Text>
+                <Text className="font-medium">{new Date().toLocaleDateString()}</Text>
               </View>
             </View>
           </View>
@@ -69,7 +63,7 @@ export default function Success() {
 
         {/* Action buttons */}
         <View className="mt-12 w-full gap-4">
-          <TouchableOpacity className="w-full rounded-full bg-primary py-4" onPress={handleDone}>
+          <TouchableOpacity className="w-full rounded-full bg-blue-500 py-4" onPress={handleDone}>
             <Text className="text-center font-semibold text-white">Done</Text>
           </TouchableOpacity>
         </View>

@@ -3,8 +3,9 @@ import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Modal } fro
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
-import Loader from '~/components/Loader';
-import { Channel } from '~/types/models';
+import Loader from '../../components/Loader';
+import { TransactionType } from '../../types/models';
+import { useTransferForm } from '../../store/exports';
 
 type ContactWithState = Contacts.Contact & {
   phoneNumber?: string;
@@ -12,6 +13,8 @@ type ContactWithState = Contacts.Contact & {
 
 export default function MobileTransfer() {
   const router = useRouter();
+  const { recipients } = useTransferForm();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [contacts, setContacts] = useState<ContactWithState[]>([]);
   const [showContactsList, setShowContactsList] = useState(false);
@@ -144,17 +147,13 @@ export default function MobileTransfer() {
       return;
     }
 
-    // Alert user of the selected contact (for demo)
-    Alert.alert('Contact Selected', `Selected ${contact.name} with number ${contact.phoneNumber}`);
-
     // Navigate to payment page with mobile transfer details
     router.push({
       pathname: '/account/payment',
       params: {
         recipientName: contact.name || 'Contact',
         mobileNumber: contact.phoneNumber,
-        transactionType: 'Mobile Transfer',
-        channel: Channel.MOBILE_NUMBER,
+        transactionType: 'Fund Transfer' as TransactionType,
       },
     });
   };
@@ -201,7 +200,7 @@ export default function MobileTransfer() {
 
             {/* Sync Contacts Button */}
             <TouchableOpacity
-              className="rounded-full bg-primary px-8 py-3"
+              className="rounded-full bg-blue-500 px-8 py-3"
               onPress={handleSyncContacts}>
               <Text className="text-lg font-semibold text-white">Sync my contacts</Text>
             </TouchableOpacity>
@@ -262,7 +261,7 @@ export default function MobileTransfer() {
 
             <View className="gap-3">
               <TouchableOpacity
-                className="rounded-xl bg-primary py-3"
+                className="rounded-xl bg-blue-500 py-3"
                 onPress={() => handleContactAccess('full')}>
                 <Text className="text-center font-semibold text-white">Allow full access</Text>
               </TouchableOpacity>

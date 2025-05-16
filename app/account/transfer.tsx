@@ -1,20 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '~/contexts/AuthContext';
-import { useAccounts } from '~/contexts/AccountContext';
-import Loader from '~/components/Loader';
-import { getRecentTransfers } from '~/mocks/transfers';
-import RecentTransfers from '~/components/RecentTransfers';
+import RecentTransfers from '../../components/RecentTransfers';
 
 export default function Transfer() {
   const router = useRouter();
-  const { auth } = useAuth();
-  const { accounts, selectedAccount, loading: transferLoading, refreshAccounts } = useAccounts();
-
-  // Get recent transfers from mock data
-  const [recentTransfers, setRecentTransfers] = useState(getRecentTransfers());
 
   // Navigate to bank transfer page
   const handleBankTransfer = () => {
@@ -41,26 +32,21 @@ export default function Transfer() {
         {/* Top buttons for initiating transfers */}
         <View className="mb-6 mt-4 flex-row items-center justify-between">
           <TouchableOpacity
-            className="mr-2 flex-1 items-center justify-center rounded-full bg-primary py-3"
+            className="mr-2 flex-1 items-center justify-center rounded-full bg-blue-500 py-3"
             onPress={handleBankTransfer}>
             <Text className="text-base font-semibold text-white">Bank Transfer</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="ml-2 flex-1 items-center justify-center rounded-full bg-primary py-3"
+            className="ml-2 flex-1 items-center justify-center rounded-full bg-blue-500 py-3"
             onPress={handleMobileTransfer}>
             <Text className="text-base font-semibold text-white">Mobile Transfer</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Recent Transfers Section */}
         <View className="mt-6 flex-1">
-          <Text className="mb-4 text-lg font-bold text-gray-700">Recent Transfers</Text>
-          <RecentTransfers recentTransfers={recentTransfers} />
+          <RecentTransfers />
         </View>
-
-        {/* Loading indicator */}
-        {transferLoading && <Loader text="Processing transfer..." />}
       </View>
     </SafeAreaView>
   );

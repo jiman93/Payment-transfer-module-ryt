@@ -1,122 +1,71 @@
-// ---------------- shared value objects ------------------
 export type UUID = string;
-export type Currency = 'MYR' | 'USD' | 'EUR';
+export type Currency = 'MYR'; // one currency for demo
+export type TransactionType = 'Fund Transfer' | 'Credit Card Payment' | 'Loan Payment';
+export type BiometricsType = 'FaceID' | 'TouchID' | 'Fingerprint' | 'None';
 
-export enum TransferStatus {
-  PENDING = 'PENDING',
-  PROCESSING = 'PROCESSING',
-  SUCCESS = 'SUCCESS',
-  FAILED = 'FAILED',
+/* ── 1. Auth flag ───────────────────────────────────────── */
+export interface AuthState {
+  isAuthenticated: boolean; // true after biometrics or PIN
+  biometricsType: BiometricsType; // type of biometrics enabled by user
 }
 
-export type FailReason = 'INSUFFICIENT_FUNDS' | 'NETWORK_ERROR' | 'AUTH_FAILED' | 'UNKNOWN';
-
-// ---------------- recipient / channel -------------------
-
-export enum Channel {
-  BANK_ACCOUNT = 'BANK_ACCOUNT', // accountNo + bankCode
-  MOBILE_NUMBER = 'MOBILE_NUMBER', // MSISDN (+ provider tag if you like)
-}
-
-/**
- * A single "recipient handle" the user can pick in the UI.
- * Only the fields relevant to its channel are populated.
- */
-export interface Recipient {
-  id: UUID;
-  userId: UUID; // owner
-  channel: Channel;
-  name?: string; // optional for ad-hoc mobile top-ups
-
-  // —— BANK_ACCOUNT channel ——
-  accountNo?: string; // "1234567890"
-  bankCode?: string; // "MB" = Maybank
-
-  // —— MOBILE_NUMBER channel ——
-  mobileNumber?: string; // E.164 e.g. "+60123456789"
-  provider?: string; // "Boost", "TNG", etc. (if relevant)
-
-  avatarUrl?: string;
-  createdAt: string;
-}
-
-// ---------------- core entities -------------------------
-
+/* ── 2. Account ─────────────────────────────────────────── */
 export interface Account {
   id: UUID;
-  userId: UUID;
-  iban?: string;
-  accountNo?: string;
-  currency: Currency;
   balanceCents: number;
-  createdAt: string;
-  updatedAt: string;
+  currency: Currency; // always 'MYR' here
 }
 
+/* ── 3. Recipients (bank OR mobile) ─────────────────────── */
+export type Recipient = BankRecipient | MobileRecipient;
+
+export interface BankRecipient {
+  id: UUID;
+  type: 'BANK'; // discriminator
+  name: string;
+  accountNo: string; // "1234567890"
+  bankCode: string; // "MB" etc.
+}
+
+export interface MobileRecipient {
+  id: UUID;
+  type: 'MOBILE'; // discriminator
+  name: string;
+  mobileNumber: string; // "+60123456789"
+}
+
+/* ── 4. Transfers ───────────────────────────────────────── */
 export interface Transfer {
   id: UUID;
-  accountId: UUID; // debit source
-  channel: Channel; // BANK_ACCOUNT or MOBILE_NUMBER
-  recipientId?: UUID; // null when ad-hoc mobile top-up
+  recipient: Recipient;
+  transactionType: TransactionType;
   amountCents: number;
+  reference: string;
   note?: string;
-  status: TransferStatus;
-  failReason?: FailReason;
-  referenceCode?: string;
-  initiatedAt: string;
-  completedAt?: string;
+  createdAt: string; // ISO-8601
 }
 
-// ---------------- biometrics / auth ---------------------
+/* ── 5. DTOs for API/mocks ──────────────────────────────── */
+export type NewTransferRequest = Omit<Transfer, 'id' | 'createdAt'>;
+export type NewTransferResponse = Transfer;
 
-export type AuthMethod = 'FACE_ID' | 'TOUCH_ID' | 'PIN';
-
-export interface AuthEvent {
-  id: UUID;
-  transferId: UUID;
-  userId: UUID;
-  method: AuthMethod;
-  success: boolean;
-  errorCode?: string;
-  createdAt: string;
+export interface TransferPaginationParams {
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
-// ---------------- DTOs for the mobile app ---------------
+/* ── 6. In-memory store shape (Zustand) ─────────────────── */
+export interface StoreState {
+  auth: AuthState;
+  account: Account | null;
+  recipients: Recipient[];
+  transfers: Transfer[];
+  transfersPagination: TransferPaginationParams;
 
-// outbound request from RN app → API
-export interface TransferRequestDto {
-  accountId: UUID;
-  channel: Channel;
-
-  // For saved handles (both channels)
-  recipientId?: UUID;
-
-  // For ad-hoc BANK_ACCOUNT
-  accountNo?: string;
-  bankCode?: string;
-
-  // For ad-hoc MOBILE_NUMBER
-  mobileNumber?: string;
-  provider?: string;
-
-  amountCents: number;
-  note?: string;
-}
-
-// API response on create / poll
-export interface TransferResponseDto {
-  id: UUID;
-  status: TransferStatus;
-  referenceCode?: string;
-  failReason?: FailReason;
-}
-
-// For Recent Transfers stretch feature
-export interface RecentTransferDto {
-  id: UUID;
-  channel: Channel;
-  label: string; // display "Maybank •••7890" or "+6012•••"
-  currency: Currency;
-  amountCents: number;
-  executedAt: string;
+  /* Actions */
+  authenticate: () => Promise<void>; // biometrics or PIN
+  fetchAccount: () => Promise<void>;
+  newTransfer: (req: NewTransferRequest) => Promise<void>;
+  fetchRecentTransfers: (page?: number, limit?: number) => Promise<void>; // for infinite scrolling
 }

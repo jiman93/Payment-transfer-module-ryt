@@ -1,20 +1,36 @@
 import { View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
-import { RecentTransfer } from '~/mocks/transfers';
+import { Transfer } from '../types/models';
+import { useTransfers } from '../store/exports';
+import { useEffect } from 'react';
+import Loader from './Loader';
+import { Ionicons } from '@expo/vector-icons';
 
-type RecentTransfersProps = {
-  recentTransfers: RecentTransfer[];
-};
+const RecentTransfers = () => {
+  // Get transfers data and loading state from our store
+  const {
+    transfers,
+    pagination,
+    fetchTransfers,
+    isLoading,
+    fetchMoreTransfers,
+    isLoadingMore,
+    error,
+  } = useTransfers();
 
-const RecentTransfers = ({ recentTransfers }: RecentTransfersProps) => {
+  // Load transfers on component mount
+  useEffect(() => {
+    fetchTransfers();
+  }, [fetchTransfers]);
+
   // Helper function to format currency
   const formatAmount = (amountCents: number) => {
     const amount = amountCents / 100;
     return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Render a recent transfer item
-  const renderRecentTransferItem = ({ item }: { item: RecentTransfer }) => {
-    const formattedDate = new Date(item.date).toLocaleDateString();
+  // Render a transfer item
+  const renderTransferItem = ({ item }: { item: Transfer }) => {
+    const formattedDate = new Date(item.createdAt).toLocaleDateString();
 
     return (
       <TouchableOpacity
@@ -25,38 +41,77 @@ const RecentTransfers = ({ recentTransfers }: RecentTransfersProps) => {
         }}>
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
-            <Text className="text-lg font-semibold">{item.recipientName}</Text>
-            {item.recipientType === 'BANK' ? (
+            <Text className="text-lg font-semibold">{item.recipient.name}</Text>
+            {item.recipient.type === 'BANK' ? (
               <Text className="text-sm text-gray-600">
-                {item.recipientIdentifier} • {item.bankName}
+                {item.recipient.accountNo} • {item.recipient.bankCode}
               </Text>
             ) : (
-              <Text className="text-sm text-gray-600">{item.recipientIdentifier}</Text>
+              <Text className="text-sm text-gray-600">{item.recipient.mobileNumber}</Text>
             )}
             <Text className="mt-1 text-xs text-gray-500">{formattedDate}</Text>
           </View>
           <View>
-            <Text className="text-base font-bold text-primary">
+            <Text className="text-base font-bold text-blue-500">
               {formatAmount(item.amountCents)}
             </Text>
+            <Text className="text-right text-xs text-gray-500">{item.transactionType}</Text>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
+  // Render footer with load more button
+  const renderFooter = () => {
+    if (isLoadingMore) {
+      return <Loader text="Loading more..." />;
+    }
+
+    if (!pagination.hasMore) {
+      return (
+        <View className="items-center py-4">
+          <Text className="text-gray-500">No more transfers to load</Text>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        className="flex-row items-center justify-center py-4"
+        onPress={fetchMoreTransfers}
+        disabled={isLoading || isLoadingMore}>
+        <Text className="mr-2 font-medium text-blue-500">Load more</Text>
+        <Ionicons name="chevron-down" size={16} color="#3b82f6" />
+      </TouchableOpacity>
+    );
+  };
+
+  // Handle loading state
+  if (isLoading && transfers.length === 0) {
+    return <Loader text="Loading transfers..." />;
+  }
+
+  // Render the list or empty state
   return (
     <View className="flex-1">
-      {recentTransfers.length > 0 ? (
+      <Text className="mb-4 text-xl font-bold text-gray-800">Recent Transfers</Text>
+
+      {transfers.length > 0 ? (
         <FlatList
-          data={recentTransfers}
-          renderItem={renderRecentTransferItem}
-          keyExtractor={(item) => item.id.toString()}
+          data={transfers}
+          renderItem={renderTransferItem}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
+          onEndReached={() => {
+            // Removed auto-loading on end reached
+          }}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
         />
       ) : (
-        <View className="flex-1 items-center justify-center">
+        <View className="items-center justify-center py-8">
           <Text className="text-center text-gray-500">No recent transfers</Text>
         </View>
       )}
