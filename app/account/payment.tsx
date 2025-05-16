@@ -173,7 +173,7 @@ export default function Payment() {
       <View className="flex-1 items-center justify-center bg-white p-4">
         <Text className="mb-4 text-center text-red-500">Transfer information not available</Text>
         <TouchableOpacity
-          className="rounded-xl bg-blue-500 px-6 py-3"
+          className="rounded-xl bg-primary px-6 py-3"
           onPress={() => router.replace('/account/bank-transfer')}>
           <Text className="font-medium text-white">Go Back to Transfers</Text>
         </TouchableOpacity>
@@ -259,7 +259,7 @@ export default function Payment() {
                 <View
                   className={`flex-row items-center border-b pb-2 ${
                     isAmountFocused
-                      ? 'border-b-2 border-blue-500'
+                      ? 'border-b-2 border-primary'
                       : errors.amount
                         ? 'border-b-2 border-red-500'
                         : 'border-gray-300'
@@ -315,7 +315,7 @@ export default function Payment() {
                 <TextInput
                   className={`border-b py-2 text-base ${
                     isReferenceFocused
-                      ? 'border-b-2 border-blue-500'
+                      ? 'border-b-2 border-primary'
                       : errors.reference
                         ? 'border-b-2 border-red-500'
                         : 'border-gray-300'
@@ -360,7 +360,7 @@ export default function Payment() {
             render={({ field: { onChange, value, onBlur } }) => (
               <TextInput
                 className={`h-20 rounded-xl p-4 text-gray-700 ${
-                  isDetailsFocused ? 'border-2 border-blue-500 bg-gray-50' : 'bg-gray-100'
+                  isDetailsFocused ? 'border-2 border-primary bg-gray-50' : 'bg-gray-100'
                 }`}
                 multiline
                 numberOfLines={4}
@@ -381,12 +381,12 @@ export default function Payment() {
 
         <TouchableOpacity
           className={`rounded-2xl py-4 ${
-            watchedAmount && watchedReference ? 'bg-blue-500' : 'bg-gray-300'
+            watchedAmount && watchedReference ? 'bg-primary' : 'bg-gray-300'
           }`}
           disabled={!watchedAmount || !watchedReference || isLoading}
           onPress={handleSubmit(onSubmit)}>
           <Text className="text-center font-bold text-white">
-            {isLoading ? 'Loading...' : 'Continue to review'}
+            {isLoading ? 'Loading...' : 'Next'}
           </Text>
         </TouchableOpacity>
 

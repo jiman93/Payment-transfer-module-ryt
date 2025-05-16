@@ -1,10 +1,10 @@
-import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import Loader from '../../components/Loader';
 import { useTransferForm } from '../../store/exports';
-import { TransactionType } from '../../types/models';
+import ErrorScreen from '../../components/ErrorScreen';
 
 export default function Review() {
   const router = useRouter();
@@ -24,7 +24,8 @@ export default function Review() {
   }, [currentTransfer, router]);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('Transfer failed. Please try again later.');
 
   // Show loader while loading data
   useEffect(() => {
@@ -52,20 +53,26 @@ export default function Review() {
 
   const handleConfirm = async () => {
     setIsLoading(true);
-    setConfirmationError(null);
+    setHasError(false);
 
     try {
       // Confirm the transfer using store data
+      // The confirmTransfer function has been updated to properly handle API errors
       const success = await confirmTransfer();
 
       if (success) {
         router.replace('/account/success');
       } else {
-        setConfirmationError('Transfer failed. Please try again later.');
+        // If confirmTransfer returns false, it means the API request failed
+        setErrorMessage(
+          'Transfer failed. The bank declined your transfer. Please try again later.'
+        );
+        setHasError(true);
       }
     } catch (err) {
       console.error('Transfer confirmation error:', err);
-      setConfirmationError('An error occurred during transfer confirmation.');
+      setErrorMessage('An error occurred during transfer confirmation.');
+      setHasError(true);
     } finally {
       setIsLoading(false);
     }
@@ -81,12 +88,22 @@ export default function Review() {
     return <Loader text="Loading transfer details..." />;
   }
 
+  if (hasError) {
+    return (
+      <ErrorScreen
+        message={errorMessage}
+        onRetry={() => router.replace('/account')}
+        buttonText="Back to Home"
+      />
+    );
+  }
+
   if (!currentTransfer) {
     return (
       <View className="flex-1 items-center justify-center bg-white p-4">
         <Text className="mb-4 text-center text-red-500">Transfer information not available</Text>
         <TouchableOpacity
-          className="rounded-xl bg-blue-500 px-6 py-3"
+          className="rounded-xl bg-primary px-6 py-3"
           onPress={() => router.replace('/account/bank-transfer')}>
           <Text className="font-medium text-white">Go Back to Transfers</Text>
         </TouchableOpacity>
@@ -111,13 +128,6 @@ export default function Review() {
           <Text className="text-3xl font-bold text-gray-800">{formatAmount(amount as string)}</Text>
           <Text className="mt-1 text-gray-500">Transfer Amount</Text>
         </View>
-
-        {/* Error message if confirmation failed */}
-        {confirmationError && (
-          <View className="mb-4 rounded-lg bg-red-100 p-3">
-            <Text className="text-center text-red-600">{confirmationError}</Text>
-          </View>
-        )}
 
         {/* Card Section */}
         <View className="my-4 rounded-2xl bg-gray-50 p-5">
@@ -190,7 +200,7 @@ export default function Review() {
       {/* Bottom Buttons */}
       <View className="absolute bottom-8 left-0 right-0 px-4">
         <TouchableOpacity
-          className="w-full rounded-full bg-blue-500 py-4"
+          className="w-full rounded-full bg-primary py-4"
           onPress={handleConfirm}
           disabled={isLoading || isSubmitting}>
           <Text className="text-center text-base font-semibold text-white">Confirm</Text>

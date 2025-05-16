@@ -42,7 +42,7 @@ export default function Success() {
       <View className="flex-1 items-center justify-center bg-white p-4">
         <Text className="mb-4 text-center text-red-500">Transfer information not available</Text>
         <TouchableOpacity
-          className="rounded-xl bg-blue-500 px-6 py-3"
+          className="rounded-xl bg-primary px-6 py-3"
           onPress={() => router.replace('/account/bank-transfer')}>
           <Text className="font-medium text-white">Go Back to Transfers</Text>
         </TouchableOpacity>
@@ -52,13 +52,6 @@ export default function Success() {
 
   return (
     <View className="flex-1 bg-white pt-8">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pb-4 pt-8">
-        <View style={{ width: 24 }} />
-        <Text className="flex-1 text-center text-xl font-semibold">Transfer Complete</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
       <View className="flex-1 items-center justify-center px-4">
         {/* Success Animation */}
         <LottieView
@@ -108,7 +101,7 @@ export default function Success() {
 
         {/* Action buttons */}
         <View className="mt-12 w-full gap-4">
-          <TouchableOpacity className="w-full rounded-full bg-blue-500 py-4" onPress={handleDone}>
+          <TouchableOpacity className="w-full rounded-full bg-primary py-4" onPress={handleDone}>
             <Text className="text-center font-semibold text-white">Done</Text>
           </TouchableOpacity>
         </View>

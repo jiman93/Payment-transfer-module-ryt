@@ -200,7 +200,7 @@ export default function MobileTransfer() {
 
             {/* Sync Contacts Button */}
             <TouchableOpacity
-              className="rounded-full bg-blue-500 px-8 py-3"
+              className="rounded-full bg-primary px-8 py-3"
               onPress={handleSyncContacts}>
               <Text className="text-lg font-semibold text-white">Sync my contacts</Text>
             </TouchableOpacity>
@@ -261,7 +261,7 @@ export default function MobileTransfer() {
 
             <View className="gap-3">
               <TouchableOpacity
-                className="rounded-xl bg-blue-500 py-3"
+                className="rounded-xl bg-primary py-3"
                 onPress={() => handleContactAccess('full')}>
                 <Text className="text-center font-semibold text-white">Allow full access</Text>
               </TouchableOpacity>

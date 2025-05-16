@@ -86,7 +86,7 @@ const RecentTransfers = () => {
           <View>
             <Text className="text-right text-xs text-gray-500">{item.transactionType}</Text>
             <View className="mt-2 items-center justify-center">
-              <Ionicons name="arrow-forward-circle" size={24} color="#3b82f6" />
+              <Ionicons name="arrow-forward-circle" size={24} color="#3b5aff" />
             </View>
           </View>
         </View>
@@ -113,7 +113,7 @@ const RecentTransfers = () => {
         className="flex-row items-center justify-center py-4"
         onPress={fetchMoreTransfers}
         disabled={isLoading || isLoadingMore}>
-        <Text className="mr-2 font-medium text-blue-500">Load more</Text>
+        <Text className="mr-2 font-medium text-primary">Load more</Text>
         <Ionicons name="chevron-down" size={16} color="#3b82f6" />
       </TouchableOpacity>
     );

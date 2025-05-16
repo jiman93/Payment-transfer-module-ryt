@@ -120,7 +120,7 @@ export default function BankTransfer() {
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
                 className={`border-b py-3 text-base text-gray-700 ${
-                  isAccountNumberFocused ? 'border-b-2 border-blue-500' : 'border-gray-300'
+                  isAccountNumberFocused ? 'border-b-2 border-primary' : 'border-gray-300'
                 }`}
                 placeholder="Account number"
                 placeholderTextColor="#aaa"
@@ -163,7 +163,7 @@ export default function BankTransfer() {
       {/* Next Button */}
       <View className="px-4 py-8">
         <TouchableOpacity
-          className={`w-full rounded-full py-4 ${isFormValid ? 'bg-blue-500' : 'bg-blue-300'}`}
+          className={`w-full rounded-full py-4 ${isFormValid ? 'bg-primary' : 'bg-blue-300'}`}
           onPress={handleSubmit(onSubmitBankTransfer)}
           disabled={!isFormValid}>
           <Text className="text-center text-base font-semibold text-white">Next</Text>
@@ -190,7 +190,7 @@ export default function BankTransfer() {
                   key={index}
                   className={`rounded-xl border p-4 ${
                     watchedValues.recipientBank === bank
-                      ? 'border-2 border-blue-500'
+                      ? 'border-2 border-primary'
                       : 'border-gray-200'
                   }`}
                   onPress={() => {
@@ -199,7 +199,7 @@ export default function BankTransfer() {
                   }}>
                   <Text
                     className={`text-base ${
-                      watchedValues.recipientBank === bank ? 'font-semibold text-blue-500' : ''
+                      watchedValues.recipientBank === bank ? 'font-semibold text-primary' : ''
                     }`}>
                     {bank}
                   </Text>
@@ -234,7 +234,7 @@ export default function BankTransfer() {
                     key={index}
                     className={`w-full rounded-xl border p-4 ${
                       watchedValues.transactionType === type
-                        ? 'border-2 border-blue-500'
+                        ? 'border-2 border-primary'
                         : 'border-gray-200'
                     }`}
                     onPress={() => {
@@ -243,7 +243,7 @@ export default function BankTransfer() {
                     }}>
                     <Text
                       className={`text-center text-base ${
-                        watchedValues.transactionType === type ? 'font-semibold text-blue-500' : ''
+                        watchedValues.transactionType === type ? 'font-semibold text-primary' : ''
                       }`}>
                       {type}
                     </Text>
