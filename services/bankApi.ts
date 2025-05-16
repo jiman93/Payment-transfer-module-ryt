@@ -1,6 +1,8 @@
 import {
   Account,
   Recipient,
+  BankRecipient,
+  MobileRecipient,
   Transfer,
   TransferPaginationParams,
   NewTransferRequest,
@@ -13,6 +15,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Simulate API error (about 10% of the time)
 const simulateRandomError = (errorRate = 0.1) => {
+  return;
   if (Math.random() < errorRate) {
     throw new Error('Network error: Failed to fetch data');
   }
@@ -108,6 +111,68 @@ export const bankApi = {
         };
       }
     },
+
+    // Get recipient by account number
+    getByAccountNumber: async (accountNo: string): Promise<ApiResponse<BankRecipient | null>> => {
+      try {
+        // Simulate API call delay
+        await delay(500);
+
+        // Simulate possible error
+        simulateRandomError();
+
+        // Find all bank recipients
+        const bankRecipients = mockRecipients.filter((r): r is BankRecipient => r.type === 'BANK');
+
+        // Return a random bank recipient
+        const randomIndex = Math.floor(Math.random() * bankRecipients.length);
+        const recipient = bankRecipients[randomIndex] || null;
+
+        return {
+          data: recipient,
+          error: null,
+        };
+      } catch (error) {
+        console.error('Recipient search error:', error);
+        return {
+          data: null,
+          error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+      }
+    },
+
+    // Get recipient by mobile number
+    getByMobileNumber: async (
+      mobileNumber: string
+    ): Promise<ApiResponse<MobileRecipient | null>> => {
+      try {
+        // Simulate API call delay
+        await delay(500);
+
+        // Simulate possible error
+        simulateRandomError();
+
+        // Find all mobile recipients
+        const mobileRecipients = mockRecipients.filter(
+          (r): r is MobileRecipient => r.type === 'MOBILE'
+        );
+
+        // Return a random mobile recipient
+        const randomIndex = Math.floor(Math.random() * mobileRecipients.length);
+        const recipient = mobileRecipients[randomIndex] || null;
+
+        return {
+          data: recipient,
+          error: null,
+        };
+      } catch (error) {
+        console.error('Recipient search error:', error);
+        return {
+          data: null,
+          error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+      }
+    },
   },
 
   /**
@@ -129,7 +194,7 @@ export const bankApi = {
         await delay(700);
 
         // Simulate possible error
-        // simulateRandomError();
+        simulateRandomError();
 
         const { transfers, hasMore } = getPaginatedTransfers(page, limit);
 

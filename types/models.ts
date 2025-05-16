@@ -65,7 +65,10 @@ export interface StoreState {
 
   /* Actions */
   authenticate: () => Promise<void>; // biometrics or PIN
+  updateAuthState: (authState: Partial<AuthState>) => void; // update auth state
   fetchAccount: () => Promise<void>;
   newTransfer: (req: NewTransferRequest) => Promise<void>;
   fetchRecentTransfers: (page?: number, limit?: number) => Promise<void>; // for infinite scrolling
+  fetchBankRecipient: (accountNo: string) => Promise<BankRecipient | null>; // fetch recipient by account number
+  fetchMobileRecipient: (mobileNumber: string) => Promise<MobileRecipient | null>; // fetch recipient by mobile number
 }

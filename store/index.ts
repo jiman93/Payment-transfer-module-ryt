@@ -3,6 +3,8 @@ import {
   StoreState,
   AuthState,
   Account,
+  BankRecipient,
+  MobileRecipient,
   TransferPaginationParams,
   NewTransferRequest,
 } from '../types/models';
@@ -11,7 +13,13 @@ import { bankApi } from '../services/bankApi';
 // Initial state
 const initialState: Omit<
   StoreState,
-  'authenticate' | 'fetchAccount' | 'newTransfer' | 'fetchRecentTransfers'
+  | 'authenticate'
+  | 'fetchAccount'
+  | 'newTransfer'
+  | 'fetchRecentTransfers'
+  | 'updateAuthState'
+  | 'fetchBankRecipient'
+  | 'fetchMobileRecipient'
 > = {
   auth: {
     isAuthenticated: false,
@@ -47,6 +55,16 @@ export const useStore = create<StoreState>((set: any, get: any) => ({
     }
   },
 
+  // Update auth state (for use with biometrics)
+  updateAuthState: (authState: Partial<AuthState>) => {
+    set((state: StoreState) => ({
+      auth: {
+        ...state.auth,
+        ...authState,
+      },
+    }));
+  },
+
   // ACCOUNT
   fetchAccount: async () => {
     try {
@@ -71,6 +89,39 @@ export const useStore = create<StoreState>((set: any, get: any) => ({
       set({ recipients: recipientsResponse.data });
     } catch (error) {
       console.error('Account data fetch failed:', error);
+    }
+  },
+
+  // RECIPIENTS
+  fetchBankRecipient: async (accountNo: string): Promise<BankRecipient | null> => {
+    try {
+      const response = await bankApi.recipients.getByAccountNumber(accountNo);
+
+      if (response.error) {
+        console.error('Bank recipient fetch error:', response.error);
+        return null;
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Bank recipient fetch failed:', error);
+      return null;
+    }
+  },
+
+  fetchMobileRecipient: async (mobileNumber: string): Promise<MobileRecipient | null> => {
+    try {
+      const response = await bankApi.recipients.getByMobileNumber(mobileNumber);
+
+      if (response.error) {
+        console.error('Mobile recipient fetch error:', response.error);
+        return null;
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Mobile recipient fetch failed:', error);
+      return null;
     }
   },
 

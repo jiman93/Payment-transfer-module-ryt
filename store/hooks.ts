@@ -3,16 +3,59 @@ import { StoreState } from '../types/models';
 import { useState, useCallback, useEffect } from 'react';
 import { Transfer, TransactionType, NewTransferRequest } from '../types/models';
 import { Alert } from 'react-native';
+import authService from '../services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Auth hooks
 export const useAuth = () => {
   const store = useStore();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showAuthentication, setShowAuthentication] = useState(false);
 
   const authenticate = async () => {
     setIsAuthenticating(true);
-    await store.authenticate();
-    setIsAuthenticating(false);
+
+    try {
+      // Get biometric type first
+      const biometricType = await authService.getBiometricType();
+
+      // Update biometric type in the store
+      store.updateAuthState({
+        biometricsType: biometricType,
+      });
+
+      // For demo app, we'll auto-authenticate without actually checking
+      // In a real app, we would trigger the Authentication component here
+      // and update isAuthenticated only after successful authentication
+      store.updateAuthState({
+        isAuthenticated: true,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Authentication error:', error);
+      return false;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  // This function could be used in a real app to show the Authentication component
+  const requireAuthentication = () => {
+    setShowAuthentication(true);
+  };
+
+  // Callback for when authentication is successful
+  const handleAuthSuccess = () => {
+    setShowAuthentication(false);
+    store.updateAuthState({
+      isAuthenticated: true,
+    });
+  };
+
+  // Callback for when authentication is canceled
+  const handleAuthCancel = () => {
+    setShowAuthentication(false);
   };
 
   return {
@@ -20,6 +63,10 @@ export const useAuth = () => {
     biometricsType: store.auth.biometricsType,
     authenticate,
     isAuthenticating,
+    showAuthentication,
+    requireAuthentication,
+    handleAuthSuccess,
+    handleAuthCancel,
   };
 };
 
@@ -104,11 +151,92 @@ export const useTransfers = () => {
   };
 };
 
+// Type for transfer data throughout the flow
+export type TransferData = {
+  // Recipient details
+  recipientBank?: string;
+  accountNo?: string;
+  recipientName?: string;
+  mobileNumber?: string;
+
+  // Transaction details
+  transactionType: TransactionType;
+  amount?: string;
+  reference?: string;
+  note?: string;
+};
+
 // Combined hook for transfer form
 export const useTransferForm = () => {
   const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastTransfer, setLastTransfer] = useState<any>(null);
+  const [lastTransfer, setLastTransfer] = useState<TransferData | null>(null);
+  const [currentTransfer, setCurrentTransfer] = useState<TransferData | null>(null);
+
+  // Load transfer data from AsyncStorage on initial mount
+  useEffect(() => {
+    const loadTransferData = async () => {
+      try {
+        const savedCurrentTransfer = await AsyncStorage.getItem('currentTransfer');
+        if (savedCurrentTransfer) {
+          setCurrentTransfer(JSON.parse(savedCurrentTransfer));
+        }
+
+        const savedLastTransfer = await AsyncStorage.getItem('lastTransfer');
+        if (savedLastTransfer) {
+          setLastTransfer(JSON.parse(savedLastTransfer));
+        }
+      } catch (error) {
+        console.error('Error loading transfer data:', error);
+      }
+    };
+
+    loadTransferData();
+  }, []);
+
+  // Save current transfer data to AsyncStorage when it changes
+  useEffect(() => {
+    const saveTransferData = async () => {
+      try {
+        if (currentTransfer) {
+          await AsyncStorage.setItem('currentTransfer', JSON.stringify(currentTransfer));
+        } else {
+          await AsyncStorage.removeItem('currentTransfer');
+        }
+      } catch (error) {
+        console.error('Error saving current transfer data:', error);
+      }
+    };
+
+    saveTransferData();
+  }, [currentTransfer]);
+
+  // Save last transfer data to AsyncStorage when it changes
+  useEffect(() => {
+    const saveLastTransferData = async () => {
+      try {
+        if (lastTransfer) {
+          await AsyncStorage.setItem('lastTransfer', JSON.stringify(lastTransfer));
+        } else {
+          await AsyncStorage.removeItem('lastTransfer');
+        }
+      } catch (error) {
+        console.error('Error saving last transfer data:', error);
+      }
+    };
+
+    saveLastTransferData();
+  }, [lastTransfer]);
+
+  // Start a new transfer (bank or mobile)
+  const startTransfer = (transferInitData: TransferData) => {
+    setCurrentTransfer(transferInitData);
+  };
+
+  // Update fields in current transfer
+  const updateTransferDetails = (details: Partial<TransferData>) => {
+    setCurrentTransfer((prev) => (prev ? { ...prev, ...details } : null));
+  };
 
   // Submit a new transfer
   const submitTransfer = async (transferData: any) => {
@@ -148,12 +276,14 @@ export const useTransferForm = () => {
   };
 
   // Confirm a transfer (final step)
-  const confirmTransfer = async (transferData: any) => {
+  const confirmTransfer = async (transferData: any = currentTransfer) => {
+    if (!transferData) return false;
+
     setIsSubmitting(true);
 
     try {
       // Convert amount to cents if it's not already
-      const amountCents = Math.round(transferData.amount * 100);
+      const amountCents = Math.round(parseFloat(transferData.amount) * 100);
 
       // Create either a bank or mobile recipient
       const recipient = transferData.mobileNumber
@@ -193,11 +323,21 @@ export const useTransferForm = () => {
   };
 
   // Reset the form
-  const resetForm = () => {
-    setLastTransfer(null);
+  const resetForm = async () => {
+    try {
+      await AsyncStorage.removeItem('currentTransfer');
+      await AsyncStorage.removeItem('lastTransfer');
+      setLastTransfer(null);
+      setCurrentTransfer(null);
+    } catch (error) {
+      console.error('Error resetting transfer form:', error);
+    }
   };
 
   return {
+    currentTransfer,
+    startTransfer,
+    updateTransferDetails,
     submitTransfer,
     confirmTransfer,
     resetForm,

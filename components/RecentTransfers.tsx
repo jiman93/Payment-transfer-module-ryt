@@ -1,9 +1,10 @@
 import { View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Transfer } from '../types/models';
 import { useTransfers } from '../store/exports';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Loader from './Loader';
 import { Ionicons } from '@expo/vector-icons';
+import ErrorScreen from './ErrorScreen';
 
 const RecentTransfers = () => {
   // Get transfers data and loading state from our store
@@ -17,10 +18,21 @@ const RecentTransfers = () => {
     error,
   } = useTransfers();
 
+  const [hasError, setHasError] = useState(false);
+
   // Load transfers on component mount
   useEffect(() => {
-    fetchTransfers();
-  }, [fetchTransfers]);
+    loadTransfers();
+  }, []);
+
+  const loadTransfers = async () => {
+    try {
+      setHasError(false);
+      await fetchTransfers();
+    } catch (error) {
+      setHasError(true);
+    }
+  };
 
   // Helper function to format currency
   const formatAmount = (amountCents: number) => {
@@ -86,6 +98,13 @@ const RecentTransfers = () => {
       </TouchableOpacity>
     );
   };
+
+  // If there's an error, show the error screen
+  if (hasError) {
+    return (
+      <ErrorScreen message="Failed to load transfers. Please try again." onRetry={loadTransfers} />
+    );
+  }
 
   // Handle loading state
   if (isLoading && transfers.length === 0) {

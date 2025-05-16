@@ -67,6 +67,15 @@ export default function Account() {
           <Text className="font-bold text-white">Make a Transfer</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Authentication Test Button */}
+      <View className="mt-4 w-full flex-row justify-center">
+        <TouchableOpacity
+          className="rounded-2xl bg-gray-200 px-6 py-3"
+          onPress={() => router.push('/auth-test')}>
+          <Text className="font-bold text-gray-700">Test Authentication</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

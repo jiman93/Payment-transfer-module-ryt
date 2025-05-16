@@ -1,123 +1,121 @@
-import { View } from 'react-native';
-import { useState, useEffect } from 'react';
-import * as LocalAuthentication from 'expo-local-authentication';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, Alert } from 'react-native';
 import PinInput from './PinInput';
 import Loader from './Loader';
-import { useAuth } from '../contexts';
-import { AuthMethod } from '../types/models';
-import { DEFAULT_USER } from '../mocks';
+import authService, { AuthMethod } from '../services/authService';
 
-type AuthenticationProps = {
-  onAuthenticate: () => void;
+interface AuthenticationProps {
+  onSuccess: () => void;
   onCancel?: () => void;
-};
+  promptMessage?: string;
+  fallbackEnabled?: boolean;
+}
 
-export default function Authentication({ onAuthenticate, onCancel }: AuthenticationProps) {
-  const { authenticate } = useAuth();
-  const [showPin, setShowPin] = useState(false);
-  const [error, setError] = useState<string>('');
-  const [pinAttempts, setPinAttempts] = useState(0);
+export default function Authentication({
+  onSuccess,
+  onCancel,
+  promptMessage = 'Authenticate to proceed',
+  fallbackEnabled = true,
+}: AuthenticationProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const MAX_ATTEMPTS = 3;
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [biometricType, setBiometricType] = useState<string>('None');
 
+  // Start biometric authentication on component mount
   useEffect(() => {
+    const checkBiometrics = async () => {
+      try {
+        // Get available biometric type
+        const type = await authService.getBiometricType();
+        setBiometricType(type);
+
+        // Attempt authentication with biometrics
+        const authResult = await authService.authenticate({
+          promptMessage,
+          fallbackToPin: fallbackEnabled,
+          onPinRequired: () => {
+            setShowPinModal(true);
+          },
+        });
+
+        // If authentication succeeded, call the success callback
+        if (authResult.success) {
+          onSuccess();
+        }
+        // Handle biometrics_canceled case specifically
+        else if (authResult.error === 'biometrics_canceled') {
+          if (!fallbackEnabled || !showPinModal) {
+            if (onCancel) {
+              onCancel();
+            }
+          }
+        }
+        // Other biometric errors that are not cancelation and not showing PIN
+        else if (authResult.method === 'biometrics' && !showPinModal) {
+          if (onCancel) {
+            onCancel();
+          }
+        }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        Alert.alert('Authentication Error', 'There was an error during authentication.');
+        if (onCancel) {
+          onCancel();
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     checkBiometrics();
   }, []);
 
-  const checkBiometrics = async () => {
-    try {
-      setIsLoading(true);
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-      if (hasHardware && isEnrolled) {
-        const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'Verify your identity',
-          fallbackLabel: 'Use PIN instead',
-          cancelLabel: 'Cancel',
-          disableDeviceFallback: true, // We'll handle the PIN fallback ourselves
-        });
-
-        if (result.success) {
-          // Use the authentication context
-          const authSuccess = await authenticate('FACE_ID' as AuthMethod);
-          if (authSuccess) {
-            onAuthenticate();
-          } else {
-            setShowPin(true);
-          }
-        } else if (result.error === 'user_cancel') {
-          setShowPin(true);
-        } else {
-          // Handle other biometric errors
-          setShowPin(true);
-        }
-      } else {
-        // No biometrics available, show PIN
-        setShowPin(true);
-      }
-    } catch (error) {
-      console.error('Biometric error:', error);
-      setShowPin(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Handle PIN input
   const handlePinComplete = async (pin: string) => {
+    setPinError(null);
     setIsLoading(true);
 
     try {
-      // Using the DEFAULT_USER's PIN from our mock data
-      if (pin === DEFAULT_USER.pin) {
-        // Call the auth context authenticate method
-        const authSuccess = await authenticate('PIN' as AuthMethod, pin);
-        if (authSuccess) {
-          setError('');
-          onAuthenticate();
-        } else {
-          setError('Authentication failed. Please try again.');
-        }
-      } else {
-        const newAttempts = pinAttempts + 1;
-        setPinAttempts(newAttempts);
+      // Verify PIN
+      const result = await authService.verifyPin(pin);
 
-        if (newAttempts >= MAX_ATTEMPTS) {
-          setError('Too many attempts. Please try again later.');
-          // In a real app, you might want to implement a timeout here
-          setTimeout(() => {
-            setPinAttempts(0);
-            setError('');
-          }, 30000); // 30 seconds lockout
-        } else {
-          setError(`Wrong passcode. ${MAX_ATTEMPTS - newAttempts} attempts remaining`);
-        }
+      if (result.success) {
+        setShowPinModal(false);
+        onSuccess();
+      } else {
+        setPinError('Invalid PIN. Please try again.');
       }
     } catch (error) {
-      console.error('PIN authentication error:', error);
-      setError('Authentication failed. Please try again.');
+      console.error('PIN verification error:', error);
+      setPinError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Handle cancel
   const handleCancel = () => {
-    setShowPin(false);
-    onCancel?.();
+    setShowPinModal(false);
+    if (onCancel) {
+      onCancel();
+    }
   };
 
-  if (isLoading && !showPin) {
-    return <Loader text="Verifying identity..." />;
+  // If waiting for biometrics, show loader
+  if (isLoading && !showPinModal) {
+    return <Loader text="Authenticating..." />;
   }
 
-  if (!showPin) {
-    return null; // Biometric prompt is native UI
-  }
-
+  // PIN modal fallback
   return (
-    <View className="flex-1">
-      <PinInput onComplete={handlePinComplete} onCancel={handleCancel} error={error} />
+    <Modal
+      visible={showPinModal}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={handleCancel}>
+      <PinInput onComplete={handlePinComplete} onCancel={handleCancel} error={pinError} />
       {isLoading && <Loader text="Verifying PIN..." />}
-    </View>
+    </Modal>
   );
 }
