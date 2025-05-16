@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { useState, useEffect } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import PinInput from './PinInput';
+import Loader from './Loader';
 
 type AuthenticationProps = {
   onAuthenticate: () => void;
@@ -12,6 +13,7 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState<string>('');
   const [pinAttempts, setPinAttempts] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const MAX_ATTEMPTS = 3;
 
   useEffect(() => {
@@ -20,6 +22,7 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
 
   const checkBiometrics = async () => {
     try {
+      setIsLoading(true);
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
@@ -46,35 +49,47 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
     } catch (error) {
       console.error('Biometric error:', error);
       setShowPin(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handlePinComplete = async (pin: string) => {
-    // Using 111111 as the PIN
-    if (pin === '111111') {
-      setError('');
-      onAuthenticate();
-    } else {
-      const newAttempts = pinAttempts + 1;
-      setPinAttempts(newAttempts);
+    setIsLoading(true);
 
-      if (newAttempts >= MAX_ATTEMPTS) {
-        setError('Too many attempts. Please try again later.');
-        // In a real app, you might want to implement a timeout here
-        setTimeout(() => {
-          setPinAttempts(0);
-          setError('');
-        }, 30000); // 30 seconds lockout
+    // Simulate verification delay
+    setTimeout(() => {
+      // Using 111111 as the PIN
+      if (pin === '111111') {
+        setError('');
+        onAuthenticate();
       } else {
-        setError(`Wrong passcode. ${MAX_ATTEMPTS - newAttempts} attempts remaining`);
+        const newAttempts = pinAttempts + 1;
+        setPinAttempts(newAttempts);
+
+        if (newAttempts >= MAX_ATTEMPTS) {
+          setError('Too many attempts. Please try again later.');
+          // In a real app, you might want to implement a timeout here
+          setTimeout(() => {
+            setPinAttempts(0);
+            setError('');
+          }, 30000); // 30 seconds lockout
+        } else {
+          setError(`Wrong passcode. ${MAX_ATTEMPTS - newAttempts} attempts remaining`);
+        }
       }
-    }
+      setIsLoading(false);
+    }, 500);
   };
 
   const handleCancel = () => {
     setShowPin(false);
     onCancel?.();
   };
+
+  if (isLoading && !showPin) {
+    return <Loader text="Verifying identity..." />;
+  }
 
   if (!showPin) {
     return null; // Biometric prompt is native UI
@@ -83,6 +98,7 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
   return (
     <View className="flex-1">
       <PinInput onComplete={handlePinComplete} onCancel={handleCancel} error={error} />
+      {isLoading && <Loader text="Verifying PIN..." />}
     </View>
   );
 }

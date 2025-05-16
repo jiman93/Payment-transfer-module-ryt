@@ -1,7 +1,7 @@
-import { View, Text, TouchableOpacity, TextInput, Modal, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal, Dimensions, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import NotValidModal from '../../components/NotValidModal';
 import Authentication from '../../components/Authentication';
@@ -47,6 +47,7 @@ export default function Transfer() {
   const [showAuthentication, setShowAuthentication] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [transferData, setTransferData] = useState<BankTransferFormValues | null>(null);
+  const accountNumberInputRef = useRef<TextInput>(null);
 
   // Bank modal
   const [showBankModal, setShowBankModal] = useState(false);
@@ -81,8 +82,19 @@ export default function Transfer() {
     watchedValues.accountNumber !== '' &&
     watchedValues.transactionType !== '';
 
+  // Function to clear focus from input fields
+  const clearFocus = () => {
+    setIsAccountNumberFocused(false);
+    Keyboard.dismiss();
+    if (accountNumberInputRef.current) {
+      accountNumberInputRef.current.blur();
+    }
+  };
+
   // Form submission handler
   const onSubmit = (data: BankTransferFormValues) => {
+    clearFocus();
+
     if (tab === 'bank') {
       // Check if account number has less than 4 digits
       if (data.accountNumber.length < 4) {
@@ -127,10 +139,14 @@ export default function Transfer() {
   };
 
   return (
-    <View className="mb-8 flex-1 bg-white pt-8">
+    <View className="mb-8 flex-1 bg-white pt-8" onTouchStart={clearFocus}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pb-8 pt-12">
-        <TouchableOpacity onPress={() => router.replace('/account')}>
+        <TouchableOpacity
+          onPress={() => {
+            clearFocus();
+            router.replace('/account');
+          }}>
           <Ionicons name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-semibold text-gray-800">Transfer</Text>
@@ -140,14 +156,20 @@ export default function Transfer() {
       <View className="mb-6 flex-row px-4">
         <TouchableOpacity
           className={`flex-1 items-center rounded-full py-2 ${tab === 'bank' ? 'bg-primary' : 'bg-gray-100'}`}
-          onPress={() => setTab('bank')}>
+          onPress={() => {
+            clearFocus();
+            setTab('bank');
+          }}>
           <Text className={`font-bold ${tab === 'bank' ? 'text-white' : 'text-gray-500'}`}>
             Bank Account
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           className={`ml-2 flex-1 items-center rounded-full py-2 ${tab === 'others' ? 'bg-primary' : 'bg-gray-100'}`}
-          onPress={() => setTab('others')}>
+          onPress={() => {
+            clearFocus();
+            setTab('others');
+          }}>
           <Text className={`font-bold ${tab === 'others' ? 'text-white' : 'text-gray-500'}`}>
             Others
           </Text>
@@ -166,7 +188,10 @@ export default function Transfer() {
               render={({ field: { onChange, value } }) => (
                 <TouchableOpacity
                   className="flex-row items-center justify-between border-b border-gray-300 py-3"
-                  onPress={() => setShowBankModal(true)}>
+                  onPress={() => {
+                    clearFocus();
+                    setShowBankModal(true);
+                  }}>
                   <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
                     {value || 'Select bank'}
                   </Text>
@@ -187,6 +212,7 @@ export default function Transfer() {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
+                  ref={accountNumberInputRef}
                   className={`border-b py-3 text-base text-gray-700 ${
                     isAccountNumberFocused ? 'border-b-2 border-primary' : 'border-gray-300'
                   }`}
@@ -214,7 +240,10 @@ export default function Transfer() {
               render={({ field: { onChange, value } }) => (
                 <TouchableOpacity
                   className="flex-row items-center justify-between border-b border-gray-300 py-3"
-                  onPress={() => setShowTypeModal(true)}>
+                  onPress={() => {
+                    clearFocus();
+                    setShowTypeModal(true);
+                  }}>
                   <Text className={`text-base ${value === '' ? 'text-gray-400' : 'text-gray-700'}`}>
                     {value || 'Select type'}
                   </Text>
@@ -234,6 +263,7 @@ export default function Transfer() {
               key={index}
               className="mb-3 flex-row items-center justify-between rounded-xl bg-gray-100 p-4"
               onPress={() => {
+                clearFocus();
                 // No action for now
               }}>
               <Text className="text-base text-gray-700">{option}</Text>
