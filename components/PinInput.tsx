@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 
 type PinInputProps = {
@@ -9,9 +9,9 @@ type PinInputProps = {
 
 export default function PinInput(props: PinInputProps) {
   // Using functions to access props instead of direct access
-  function handleComplete(pin: string) {
+  function handleComplete(pinString: string) {
     if (props && typeof props.onComplete === 'function') {
-      props.onComplete(pin);
+      props.onComplete(pinString);
     }
   }
 
@@ -21,7 +21,8 @@ export default function PinInput(props: PinInputProps) {
     }
   }
 
-  const [pin, setPin] = useState<string>('');
+  // Initialize state directly with typed empty array
+  const [pinDigits, setPinDigits] = useState<number[]>([]);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // Clear PIN when error occurs
@@ -48,24 +49,26 @@ export default function PinInput(props: PinInputProps) {
 
       // Clear PIN after shake animation
       setTimeout(() => {
-        setPin('');
+        setPinDigits([]);
       }, 300);
     }
   }, [props.error]);
 
   const handleNumberPress = (number: string) => {
-    if (pin.length < 6) {
-      const newPin = pin + number;
-      setPin(newPin);
+    if (pinDigits.length < 6) {
+      const digit = parseInt(number, 10);
+      const newPinDigits = [...pinDigits, digit];
+      setPinDigits(newPinDigits);
 
-      if (newPin.length === 6) {
-        handleComplete(newPin);
+      const newPinString = newPinDigits.join('');
+      if (newPinString.length === 6) {
+        handleComplete(newPinString);
       }
     }
   };
 
   const handleDeletePress = () => {
-    setPin(pin.slice(0, -1));
+    setPinDigits(pinDigits.slice(0, -1));
   };
 
   const renderPinDots = () => {
@@ -76,7 +79,7 @@ export default function PinInput(props: PinInputProps) {
           key={i}
           style={{ marginLeft: i > 0 ? 12 : 0 }}
           className={`h-3 w-3 rounded-full border ${
-            pin.length > i ? 'border-white bg-white' : 'border-gray-500'
+            pinDigits.length > i ? 'border-white bg-white' : 'border-gray-500'
           }`}
         />
       );
@@ -84,10 +87,16 @@ export default function PinInput(props: PinInputProps) {
     return dots;
   };
 
-  const renderNumber = (number: string, letters?: string) => (
+  const renderNumber = (number: string, letters?: string, isThirdColumn = false) => (
     <TouchableOpacity
       key={number}
-      style={{ marginLeft: number === '2' || number === '5' || number === '8' ? 16 : 0 }}
+      style={{
+        marginLeft: isThirdColumn
+          ? 16
+          : number === '2' || number === '5' || number === '8'
+            ? 16
+            : 0,
+      }}
       className="mb-6 h-[75px] w-[75px] items-center justify-center rounded-full bg-[#4B4B4B]"
       onPress={() => handleNumberPress(number)}>
       <View>
@@ -108,81 +117,65 @@ export default function PinInput(props: PinInputProps) {
     return props.error;
   };
 
+  // Create text elements for the header
+  const titleText = <Text className="mb-2 text-2xl text-white">Enter iPhone Passcode for</Text>;
+  const bankText = <Text className="mb-4 text-2xl font-light text-white">Ryt Bank</Text>;
+  const subtitleText = (
+    <Text className="text-base text-white">Local authentication is required.</Text>
+  );
+
+  // Create text elements for the buttons
+  const deleteText = <Text className="text-lg text-white">Delete</Text>;
+  const cancelText = <Text className="text-lg text-white">Cancel</Text>;
+  const number0Text = <Text className="text-3xl font-light text-white">0</Text>;
+
   return (
     <View className="flex-1 bg-black px-6 pt-20">
-      {/* Title and Subtitle */}
       <View className="mb-12 items-center">
-        <Text className="mb-2 text-2xl text-white">Enter iPhone Passcode for</Text>
-        <Text className="mb-4 text-2xl font-light text-white">Ryt Bank</Text>
-        <Text className="text-base text-white">Local authentication is required.</Text>
+        {titleText}
+        {bankText}
+        {subtitleText}
       </View>
 
-      {/* PIN Dots */}
       <Animated.View
         className="mb-16 flex-row justify-center"
         style={{ transform: [{ translateX: shakeAnim }] }}>
         {renderPinDots()}
       </Animated.View>
 
-      {/* Error Message */}
       {renderError()}
 
-      {/* Number Pad */}
       <View className="mt-8 items-center">
-        {/* Row 1-3 */}
         <View className="mb-6 flex-row justify-center">
           {renderNumber('1')}
           {renderNumber('2', 'ABC')}
-          <TouchableOpacity
-            style={{ marginLeft: 16 }}
-            className="mb-6 h-[75px] w-[75px] items-center justify-center rounded-full bg-[#4B4B4B]"
-            onPress={() => handleNumberPress('3')}>
-            <View>
-              <Text className="text-3xl font-light text-white">3</Text>
-              <Text className="text-center text-[10px] text-gray-400">DEF</Text>
-            </View>
-          </TouchableOpacity>
+          {renderNumber('3', 'DEF', true)}
         </View>
+
         <View className="mb-6 flex-row justify-center">
           {renderNumber('4', 'GHI')}
           {renderNumber('5', 'JKL')}
-          <TouchableOpacity
-            style={{ marginLeft: 16 }}
-            className="mb-6 h-[75px] w-[75px] items-center justify-center rounded-full bg-[#4B4B4B]"
-            onPress={() => handleNumberPress('6')}>
-            <View>
-              <Text className="text-3xl font-light text-white">6</Text>
-              <Text className="text-center text-[10px] text-gray-400">MNO</Text>
-            </View>
-          </TouchableOpacity>
+          {renderNumber('6', 'MNO', true)}
         </View>
+
         <View className="mb-6 flex-row justify-center">
           {renderNumber('7', 'PQRS')}
           {renderNumber('8', 'TUV')}
-          <TouchableOpacity
-            style={{ marginLeft: 16 }}
-            className="mb-6 h-[75px] w-[75px] items-center justify-center rounded-full bg-[#4B4B4B]"
-            onPress={() => handleNumberPress('9')}>
-            <View>
-              <Text className="text-3xl font-light text-white">9</Text>
-              <Text className="text-center text-[10px] text-gray-400">WXYZ</Text>
-            </View>
-          </TouchableOpacity>
+          {renderNumber('9', 'WXYZ', true)}
         </View>
 
-        {/* Bottom Row */}
         <View className="flex-row items-center">
-          <View style={{ width: 91 }} /> {/* Spacer for alignment */}
+          <View style={{ width: 91 }} />
           <TouchableOpacity
             className="h-[75px] w-[75px] items-center justify-center rounded-full bg-[#4B4B4B]"
             onPress={() => handleNumberPress('0')}>
-            <Text className="text-3xl font-light text-white">0</Text>
+            {number0Text}
           </TouchableOpacity>
           <TouchableOpacity
             style={{ marginLeft: 16, width: 75 }}
             className="h-[75px] items-center justify-center"
-            onPress={pin.length > 0 ? handleDeletePress : handleCancel}>
-            <Text className="text-lg text-white">{pin.length > 0 ? 'Delete' : 'Cancel'}</Text>
+            onPress={pinDigits.length > 0 ? handleDeletePress : handleCancel}>
+            {pinDigits.length > 0 ? deleteText : cancelText}
           </TouchableOpacity>
         </View>
       </View>
