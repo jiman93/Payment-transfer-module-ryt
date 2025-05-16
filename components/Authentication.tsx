@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import PinInput from './PinInput';
 import Loader from './Loader';
+import { useAuth } from '../contexts';
+import { AuthMethod } from '../types/models';
+import { DEFAULT_USER } from '../mocks';
 
 type AuthenticationProps = {
   onAuthenticate: () => void;
@@ -10,6 +13,7 @@ type AuthenticationProps = {
 };
 
 export default function Authentication({ onAuthenticate, onCancel }: AuthenticationProps) {
+  const { authenticate } = useAuth();
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState<string>('');
   const [pinAttempts, setPinAttempts] = useState(0);
@@ -35,7 +39,13 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
         });
 
         if (result.success) {
-          onAuthenticate();
+          // Use the authentication context
+          const authSuccess = await authenticate('FACE_ID' as AuthMethod);
+          if (authSuccess) {
+            onAuthenticate();
+          } else {
+            setShowPin(true);
+          }
         } else if (result.error === 'user_cancel') {
           setShowPin(true);
         } else {
@@ -57,12 +67,17 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
   const handlePinComplete = async (pin: string) => {
     setIsLoading(true);
 
-    // Simulate verification delay
-    setTimeout(() => {
-      // Using 111111 as the PIN
-      if (pin === '111111') {
-        setError('');
-        onAuthenticate();
+    try {
+      // Using the DEFAULT_USER's PIN from our mock data
+      if (pin === DEFAULT_USER.pin) {
+        // Call the auth context authenticate method
+        const authSuccess = await authenticate('PIN' as AuthMethod, pin);
+        if (authSuccess) {
+          setError('');
+          onAuthenticate();
+        } else {
+          setError('Authentication failed. Please try again.');
+        }
       } else {
         const newAttempts = pinAttempts + 1;
         setPinAttempts(newAttempts);
@@ -78,8 +93,12 @@ export default function Authentication({ onAuthenticate, onCancel }: Authenticat
           setError(`Wrong passcode. ${MAX_ATTEMPTS - newAttempts} attempts remaining`);
         }
       }
+    } catch (error) {
+      console.error('PIN authentication error:', error);
+      setError('Authentication failed. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleCancel = () => {
