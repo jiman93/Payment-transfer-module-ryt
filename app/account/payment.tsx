@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import Spinner from '../../components/Spinner';
+import Loader from '../../components/Loader';
 
 // Form type definition
 type PaymentFormValues = {
@@ -142,7 +142,7 @@ export default function Payment() {
                 <View
                   className={`flex-row items-center border-b pb-2 ${
                     isAmountFocused
-                      ? 'border-primary border-b-2'
+                      ? 'border-b-2 border-primary'
                       : errors.amount
                         ? 'border-b-2 border-red-500'
                         : 'border-gray-300'
@@ -185,7 +185,7 @@ export default function Payment() {
                 <TextInput
                   className={`border-b py-2 text-base ${
                     isReferenceFocused
-                      ? 'border-primary border-b-2'
+                      ? 'border-b-2 border-primary'
                       : errors.reference
                         ? 'border-b-2 border-red-500'
                         : 'border-gray-300'
@@ -230,7 +230,7 @@ export default function Payment() {
             render={({ field: { onChange, value, onBlur } }) => (
               <TextInput
                 className={`h-20 rounded-xl p-4 text-gray-700 ${
-                  isDetailsFocused ? 'border-primary border-2 bg-gray-50' : 'bg-gray-100'
+                  isDetailsFocused ? 'border-2 border-primary bg-gray-50' : 'bg-gray-100'
                 }`}
                 multiline
                 numberOfLines={4}
@@ -261,7 +261,7 @@ export default function Payment() {
       </View>
 
       {/* Loading Spinner Overlay */}
-      {isLoading && <Spinner text="Loading payment details..." />}
+      {isLoading && <Loader text="Loading payment details..." />}
     </View>
   );
 }

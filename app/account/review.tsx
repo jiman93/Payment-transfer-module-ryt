@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import Spinner from '../../components/Spinner';
+import Loader from '../../components/Loader';
 
 export default function Review() {
   const router = useRouter();
@@ -111,13 +111,13 @@ export default function Review() {
           <Text className="text-center text-base font-semibold text-gray-700">Edit</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity className="bg-primary flex-1 rounded-full py-4" onPress={handleConfirm}>
+        <TouchableOpacity className="flex-1 rounded-full bg-primary py-4" onPress={handleConfirm}>
           <Text className="text-center text-base font-semibold text-white">Confirm</Text>
         </TouchableOpacity>
       </View>
 
       {/* Loading Spinner Overlay */}
-      {isLoading && <Spinner text="Processing transfer..." />}
+      {isLoading && <Loader text="Processing transfer..." />}
     </View>
   );
 }

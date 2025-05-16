@@ -1,11 +1,11 @@
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useEffect, useRef } from 'react';
 
-type SpinnerProps = {
+type LoaderProps = {
   text?: string;
 };
 
-export default function Spinner({ text }: SpinnerProps) {
+export default function Loader({ text }: LoaderProps) {
   // Animation value for beating effect
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;

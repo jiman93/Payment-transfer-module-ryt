@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import NotValidModal from '../../components/NotValidModal';
 import Authentication from '../../components/Authentication';
-import Spinner from '../../components/Spinner';
+import Loader from '../../components/Loader';
 
 // Array of Malaysian banks and digital banks
 const MALAYSIAN_BANKS = [
@@ -265,7 +265,7 @@ export default function Transfer() {
       )}
 
       {/* Loading Spinner */}
-      {isLoading && <Spinner text="Preparing transfer details..." />}
+      {isLoading && <Loader text="Preparing transfer details..." />}
 
       {/* Bank Modal */}
       <Modal
