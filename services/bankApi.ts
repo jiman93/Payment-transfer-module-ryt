@@ -15,7 +15,6 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Simulate API error (about 10% of the time)
 const simulateRandomError = (errorRate = 0.1) => {
-  return;
   if (Math.random() < errorRate) {
     throw new Error('Network error: Failed to fetch data');
   }
@@ -64,10 +63,11 @@ export const bankApi = {
     getAccount: async (): Promise<ApiResponse<Account>> => {
       try {
         // Simulate API call delay
+
         await delay(800);
 
         // Simulate possible error
-        simulateRandomError();
+        simulateRandomError(0.1);
 
         // Get mock account
         const account = getMockAccount();
@@ -194,7 +194,7 @@ export const bankApi = {
         await delay(700);
 
         // Simulate possible error
-        simulateRandomError();
+        simulateRandomError(0);
 
         const { transfers, hasMore } = getPaginatedTransfers(page, limit);
 
@@ -225,7 +225,7 @@ export const bankApi = {
         await delay(1200);
 
         // Simulate possible error
-        simulateRandomError(0.15); // Slightly higher error rate for transfers
+        simulateRandomError(0.5); // Slightly higher error rate for transfers
 
         // Create new transfer with ID and timestamp
         const newTransfer = {

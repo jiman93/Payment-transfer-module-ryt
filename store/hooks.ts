@@ -5,6 +5,7 @@ import { Transfer, TransactionType, NewTransferRequest } from '../types/models';
 import { Alert } from 'react-native';
 import authService from '../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { bankApi } from '../services/bankApi';
 
 // Auth hooks
 export const useAuth = () => {
@@ -310,8 +311,16 @@ export const useTransferForm = () => {
         note: transferData.note,
       };
 
-      await store.newTransfer(transferRequest);
+      // Call the API and handle response properly
+      const response = await bankApi.transfers.createTransfer(transferRequest);
 
+      // Check if the API returned an error
+      if (response.error || !response.data) {
+        console.error('Transfer API error:', response.error);
+        throw new Error(response.error || 'Failed to create transfer');
+      }
+
+      // Store was updated in newTransfer, now update our local state
       setLastTransfer(transferData);
       return true;
     } catch (error) {
