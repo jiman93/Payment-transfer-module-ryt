@@ -1,12 +1,14 @@
 import { View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Transfer } from '../types/models';
-import { useTransfers } from '../store/exports';
+import { useTransfers, useTransferForm } from '../store/exports';
 import { useEffect, useState } from 'react';
 import Loader from './Loader';
 import { Ionicons } from '@expo/vector-icons';
 import ErrorScreen from './ErrorScreen';
+import { useRouter } from 'expo-router';
 
 const RecentTransfers = () => {
+  const router = useRouter();
   // Get transfers data and loading state from our store
   const {
     transfers,
@@ -17,6 +19,8 @@ const RecentTransfers = () => {
     isLoadingMore,
     error,
   } = useTransfers();
+
+  const { startTransfer } = useTransferForm();
 
   const [hasError, setHasError] = useState(false);
 
@@ -48,8 +52,24 @@ const RecentTransfers = () => {
       <TouchableOpacity
         className="mb-4 rounded-xl border border-gray-200 p-4"
         onPress={() => {
-          // Navigate to transfer details or initiate a new transfer to this recipient
-          Alert.alert('Transfer Details', `Transfer ID: ${item.id}`);
+          // Start a new transfer with this recipient's details
+          if (item.recipient.type === 'BANK') {
+            startTransfer({
+              recipientBank: item.recipient.bankCode,
+              accountNo: item.recipient.accountNo,
+              transactionType: item.transactionType,
+              recipientName: item.recipient.name,
+            });
+          } else {
+            startTransfer({
+              mobileNumber: item.recipient.mobileNumber,
+              recipientName: item.recipient.name,
+              transactionType: item.transactionType,
+            });
+          }
+
+          // Navigate to payment screen
+          router.push('/account/payment');
         }}>
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
@@ -64,10 +84,10 @@ const RecentTransfers = () => {
             <Text className="mt-1 text-xs text-gray-500">{formattedDate}</Text>
           </View>
           <View>
-            <Text className="text-base font-bold text-blue-500">
-              {formatAmount(item.amountCents)}
-            </Text>
             <Text className="text-right text-xs text-gray-500">{item.transactionType}</Text>
+            <View className="mt-2 items-center justify-center">
+              <Ionicons name="arrow-forward-circle" size={24} color="#3b82f6" />
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -124,7 +144,10 @@ const RecentTransfers = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
           onEndReached={() => {
-            // Removed auto-loading on end reached
+            // Load more transfers if available
+            if (pagination.hasMore && !isLoadingMore) {
+              fetchMoreTransfers();
+            }
           }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
