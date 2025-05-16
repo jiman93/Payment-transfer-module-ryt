@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import Loader from '../../components/Loader';
 import { useTransferForm } from '../../store/exports';
@@ -8,7 +8,34 @@ import { TransactionType } from '../../types/models';
 
 export default function Review() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const { currentTransfer, confirmTransfer, isSubmitting } = useTransferForm();
+
+  // Redirect if no currentTransfer is set after AsyncStorage loads
+  useEffect(() => {
+    if (!currentTransfer) {
+      // Allow some time for AsyncStorage to load
+      const timer = setTimeout(() => {
+        if (!currentTransfer) {
+          router.replace('/account/bank-transfer');
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentTransfer, router]);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+
+  // Show loader while loading data
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000); // Allow time for AsyncStorage to load
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Get transfer data from store
   const {
     recipientBank,
     accountNo,
@@ -18,11 +45,7 @@ export default function Review() {
     note,
     recipientName,
     mobileNumber,
-  } = params;
-
-  const { confirmTransfer, isSubmitting } = useTransferForm();
-  const [isLoading, setIsLoading] = useState(false);
-  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  } = currentTransfer || {};
 
   // Determine transfer type
   const isMobileTransfer = !!mobileNumber;
@@ -32,17 +55,8 @@ export default function Review() {
     setConfirmationError(null);
 
     try {
-      // Confirm the transfer
-      const success = await confirmTransfer({
-        recipientName: recipientName as string,
-        accountNo: accountNo as string,
-        recipientBank: recipientBank as string,
-        amount: parseFloat(amount as string),
-        reference: reference as string,
-        note: note as string,
-        transactionType: transactionType as TransactionType,
-        mobileNumber: mobileNumber as string,
-      });
+      // Confirm the transfer using store data
+      const success = await confirmTransfer();
 
       if (success) {
         router.replace('/account/success');
@@ -62,6 +76,23 @@ export default function Review() {
     if (isNaN(numAmount)) return 'RM 0.00';
     return `RM ${numAmount.toFixed(2)}`;
   };
+
+  if (isLoading) {
+    return <Loader text="Loading transfer details..." />;
+  }
+
+  if (!currentTransfer) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white p-4">
+        <Text className="mb-4 text-center text-red-500">Transfer information not available</Text>
+        <TouchableOpacity
+          className="rounded-xl bg-blue-500 px-6 py-3"
+          onPress={() => router.replace('/account/bank-transfer')}>
+          <Text className="font-medium text-white">Go Back to Transfers</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-white pt-8">

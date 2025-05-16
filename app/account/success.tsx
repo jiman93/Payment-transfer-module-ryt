@@ -1,17 +1,54 @@
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useTransferForm } from '../../store/exports';
+import LottieView from 'lottie-react-native';
+import { useEffect, useState } from 'react';
+import Loader from '../../components/Loader';
 
 export default function Success() {
   const router = useRouter();
-  const { lastTransfer, resetForm } = useTransferForm();
+  const { currentTransfer, lastTransfer, resetForm } = useTransferForm();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Give time for AsyncStorage to load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+
+      // Check if we have transfer data after loading completes
+      if (!currentTransfer && !lastTransfer) {
+        router.replace('/account/bank-transfer');
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [currentTransfer, lastTransfer, router]);
 
   // Handle going back to home
-  const handleDone = () => {
-    resetForm();
+  const handleDone = async () => {
+    await resetForm();
     router.replace('/account');
   };
+
+  if (isLoading) {
+    return <Loader text="Finalizing your transfer..." />;
+  }
+
+  // Use either lastTransfer or currentTransfer (preferring lastTransfer)
+  const transferData = lastTransfer || currentTransfer;
+
+  if (!transferData) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white p-4">
+        <Text className="mb-4 text-center text-red-500">Transfer information not available</Text>
+        <TouchableOpacity
+          className="rounded-xl bg-blue-500 px-6 py-3"
+          onPress={() => router.replace('/account/bank-transfer')}>
+          <Text className="font-medium text-white">Go Back to Transfers</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-white pt-8">
@@ -24,9 +61,12 @@ export default function Success() {
 
       <View className="flex-1 items-center justify-center px-4">
         {/* Success Animation */}
-        <View className="h-32 w-32 items-center justify-center rounded-full bg-green-100">
-          <Ionicons name="checkmark" size={64} color="#10B981" />
-        </View>
+        <LottieView
+          source={require('../../assets/success-lottie.json')}
+          autoPlay
+          loop={false}
+          style={{ width: 150, height: 150 }}
+        />
 
         {/* Success Message */}
         <Text className="mt-6 text-center text-2xl font-bold text-gray-800">
@@ -38,28 +78,33 @@ export default function Success() {
         </Text>
 
         {/* Transaction Details */}
-        {lastTransfer && (
-          <View className="mt-6 w-full rounded-xl bg-gray-50 p-5">
-            <Text className="mb-4 text-center text-lg font-medium">Transaction Details</Text>
+        <View className="mt-6 w-full rounded-xl bg-gray-50 p-5">
+          <Text className="mb-4 text-center text-lg font-medium">Transaction Details</Text>
 
-            <View className="space-y-3">
-              <View className="flex-row justify-between">
-                <Text className="text-gray-500">Reference</Text>
-                <Text className="font-medium">{lastTransfer.reference || 'N/A'}</Text>
-              </View>
+          <View className="space-y-3">
+            <View className="flex-row justify-between">
+              <Text className="text-gray-500">Reference</Text>
+              <Text className="font-medium">{transferData.reference || 'N/A'}</Text>
+            </View>
 
-              <View className="flex-row justify-between">
-                <Text className="text-gray-500">Amount</Text>
-                <Text className="font-medium">RM {lastTransfer.amount.toFixed(2)}</Text>
-              </View>
+            <View className="flex-row justify-between">
+              <Text className="text-gray-500">Amount</Text>
+              <Text className="font-medium">
+                RM {parseFloat(transferData.amount || '0').toFixed(2)}
+              </Text>
+            </View>
 
-              <View className="flex-row justify-between">
-                <Text className="text-gray-500">Date</Text>
-                <Text className="font-medium">{new Date().toLocaleDateString()}</Text>
-              </View>
+            <View className="flex-row justify-between">
+              <Text className="text-gray-500">Recipient</Text>
+              <Text className="font-medium">{transferData.recipientName || 'N/A'}</Text>
+            </View>
+
+            <View className="flex-row justify-between">
+              <Text className="text-gray-500">Date</Text>
+              <Text className="font-medium">{new Date().toLocaleDateString()}</Text>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Action buttons */}
         <View className="mt-12 w-full gap-4">

@@ -1,11 +1,12 @@
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import Loader from '../../components/Loader';
-import { useAccount, useTransferForm } from '../../store/exports';
-import { TransactionType } from '../../types/models';
+import { useAccount, useTransferForm, useAuth } from '../../store/exports';
+import { useStore } from '../../store';
+import Authentication from '../../components/Authentication';
 
 // Form type definition
 type PaymentFormValues = {
@@ -16,27 +17,80 @@ type PaymentFormValues = {
 
 export default function Payment() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { recipientBank, accountNo, transactionType, recipientName, mobileNumber } = params;
-
   const { account } = useAccount();
-  const { submitTransfer, isSubmitting } = useTransferForm();
+  const { currentTransfer, updateTransferDetails } = useTransferForm();
+  const { fetchBankRecipient, fetchMobileRecipient } = useStore();
+  const { requireAuthentication, handleAuthSuccess, handleAuthCancel, showAuthentication } =
+    useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [proceedToReview, setProceedToReview] = useState(false);
+
+  // Redirect if no currentTransfer is set
+  useEffect(() => {
+    if (!currentTransfer) {
+      // Just wait for a moment before redirecting to allow AsyncStorage to load
+      const timer = setTimeout(() => {
+        if (!currentTransfer) {
+          router.replace('/account/bank-transfer');
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentTransfer, router]);
+
+  // Fetch recipient details when component mounts
+  useEffect(() => {
+    const fetchRecipientDetails = async () => {
+      if (!currentTransfer) return;
+
+      try {
+        // Only look up if we don't already have a recipient name
+        if (!currentTransfer.recipientName) {
+          // If accountNo exists, fetch bank recipient
+          if (currentTransfer.accountNo) {
+            const recipient = await fetchBankRecipient(currentTransfer.accountNo);
+            if (recipient) {
+              updateTransferDetails({
+                recipientName: recipient.name,
+              });
+            }
+          }
+          // If mobileNumber exists, fetch mobile recipient
+          else if (currentTransfer.mobileNumber) {
+            const recipient = await fetchMobileRecipient(currentTransfer.mobileNumber);
+            if (recipient) {
+              updateTransferDetails({
+                recipientName: recipient.name,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching recipient details:', error);
+      }
+    };
+
+    fetchRecipientDetails();
+  }, [currentTransfer, fetchBankRecipient, fetchMobileRecipient, updateTransferDetails]);
 
   // Focus states
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const [isReferenceFocused, setIsReferenceFocused] = useState(false);
   const [isDetailsFocused, setIsDetailsFocused] = useState(false);
 
-  // Determine transfer type from params
+  // Get transfer data from store
+  const { recipientBank, accountNo, transactionType, recipientName, mobileNumber } =
+    currentTransfer || {};
+
+  // Determine transfer type from transfer data
   const isMobileTransfer = !!mobileNumber;
 
-  // Set loading to false after component mounts
+  // First set loading to true, then check after a delay to allow AsyncStorage to load
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 300); // Short delay to ensure smooth transition
+    }, 1000); // Longer delay to ensure AsyncStorage has time to load
 
     return () => clearTimeout(timer);
   }, []);
@@ -73,23 +127,32 @@ export default function Payment() {
       return;
     }
 
-    // Set loading before navigation
+    // Update transfer data in the store
+    updateTransferDetails({
+      amount: data.amount,
+      reference: data.reference || '',
+      note: data.note || '',
+    });
+
+    // Set flag to proceed and trigger authentication
+    setProceedToReview(true);
+    requireAuthentication();
+  };
+
+  // Handle successful authentication
+  const handleAuthenticationSuccess = () => {
+    handleAuthSuccess();
     setIsLoading(true);
 
-    // Calculate amount in cents
-    const amountCents = Math.round(amountValue * 100);
+    // Navigate to review page
+    router.push('/account/review');
+  };
 
-    // Navigate to review page with all the necessary data
-    router.push({
-      pathname: '/account/review',
-      params: {
-        ...params, // Pass through the existing params from transfer page
-        amount: data.amount,
-        amountCents: amountCents.toString(),
-        reference: data.reference || '',
-        note: data.note || '',
-      },
-    } as any);
+  // Handle authentication cancellation
+  const handleAuthenticationCancel = () => {
+    handleAuthCancel();
+    setProceedToReview(false);
+    setIsLoading(false);
   };
 
   // Quick reference handler
@@ -101,18 +164,18 @@ export default function Payment() {
     });
   };
 
-  if (isSubmitting || isLoading) {
+  if (isLoading) {
     return <Loader text="Loading payment details..." />;
   }
 
-  if (!account) {
+  if (!account || !currentTransfer) {
     return (
       <View className="flex-1 items-center justify-center bg-white p-4">
-        <Text className="mb-4 text-center text-red-500">Account information not available</Text>
+        <Text className="mb-4 text-center text-red-500">Transfer information not available</Text>
         <TouchableOpacity
           className="rounded-xl bg-blue-500 px-6 py-3"
-          onPress={() => router.back()}>
-          <Text className="font-medium text-white">Go Back</Text>
+          onPress={() => router.replace('/account/bank-transfer')}>
+          <Text className="font-medium text-white">Go Back to Transfers</Text>
         </TouchableOpacity>
       </View>
     );
@@ -208,7 +271,20 @@ export default function Payment() {
                     placeholder="0.00"
                     placeholderTextColor="#9CA3AF"
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(text) => {
+                      // Remove all non-numeric characters
+                      const numericValue = text.replace(/[^0-9]/g, '');
+
+                      // Prevent empty input from breaking the format
+                      if (!numericValue) {
+                        onChange('');
+                        return;
+                      }
+
+                      // Convert to number with 2 decimal places format
+                      const amount = (parseInt(numericValue) / 100).toFixed(2);
+                      onChange(amount);
+                    }}
                     onFocus={() => setIsAmountFocused(true)}
                     onBlur={() => {
                       setIsAmountFocused(false);
@@ -302,22 +378,27 @@ export default function Payment() {
             )}
           />
         </View>
-      </ScrollView>
 
-      {/* Bottom action area */}
-      <View className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4">
         <TouchableOpacity
           className={`rounded-2xl py-4 ${
             watchedAmount && watchedReference ? 'bg-blue-500' : 'bg-gray-300'
           }`}
-          disabled={!watchedAmount || !watchedReference}
+          disabled={!watchedAmount || !watchedReference || isLoading}
           onPress={handleSubmit(onSubmit)}>
-          <Text className="text-center font-bold text-white">Next</Text>
+          <Text className="text-center font-bold text-white">
+            {isLoading ? 'Loading...' : 'Continue to review'}
+          </Text>
         </TouchableOpacity>
-      </View>
 
-      {/* Loading overlay */}
-      {isLoading && <Loader text="Preparing your transfer..." />}
+        {proceedToReview && (
+          <Authentication
+            onSuccess={handleAuthenticationSuccess}
+            onCancel={handleAuthenticationCancel}
+            promptMessage="Please authenticate to proceed with your payment"
+            fallbackEnabled={true}
+          />
+        )}
+      </ScrollView>
     </View>
   );
 }

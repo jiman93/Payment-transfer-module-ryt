@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import { TRANSACTION_TYPES } from '../../mocks/bankData';
-import { MALAYSIAN_BANKS } from '../../mocks/bankData';
+import { TRANSACTION_TYPES, MALAYSIAN_BANKS } from '../../mocks/bankData';
 import { TransactionType } from '../../types/models';
 import Loader from '../../components/Loader';
-import PinInput from '../../components/PinInput';
+import { useTransferForm } from '../../store/exports';
 
 type BankTransferFormValues = {
   recipientBank: string;
@@ -17,21 +16,12 @@ type BankTransferFormValues = {
 
 export default function BankTransfer() {
   const router = useRouter();
+  const { startTransfer } = useTransferForm();
 
   const [isAccountNumberFocused, setIsAccountNumberFocused] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [transferData, setTransferData] = useState<BankTransferFormValues | null>(null);
-
-  // Clear pin error when pin modal visibility changes
-  useEffect(() => {
-    if (!showPinModal) {
-      setPinError(null);
-    }
-  }, [showPinModal]);
 
   // Form for bank transfers
   const { control, handleSubmit, watch, setValue } = useForm<BankTransferFormValues>({
@@ -50,57 +40,35 @@ export default function BankTransfer() {
     watchedValues.accountNo !== '' &&
     !!watchedValues.transactionType;
 
-  // Handle bank transfer form validation and show PIN modal
-  const onSubmitBankTransfer = (data: BankTransferFormValues) => {
+  // Handle bank transfer form submission
+  const onSubmitBankTransfer = async (data: BankTransferFormValues) => {
     // Validate account number has at least 4 digits
     if (data.accountNo.length < 4) {
       Alert.alert('Invalid Input', 'Account number must be at least 4 digits');
       return;
     }
 
-    // Store transfer data and show PIN modal
-    setTransferData(data);
-    setPinError(null);
-    setShowPinModal(true);
-  };
-
-  // Handle PIN completion
-  const handlePinComplete = async (pin: string) => {
-    if (!transferData) return;
-
     setLoading(true);
 
     try {
-      // Simulate authentication delay
+      // Simulate processing delay
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // For demo, we'll auto-authenticate
-      setShowPinModal(false);
+      // Use the Zustand store
+      startTransfer({
+        recipientBank: data.recipientBank,
+        accountNo: data.accountNo,
+        transactionType: data.transactionType,
+      });
 
-      setTimeout(() => {
-        setLoading(false);
-
-        // Navigate to payment page with transfer details
-        router.push({
-          pathname: '/account/payment',
-          params: {
-            recipientBank: transferData.recipientBank,
-            accountNo: transferData.accountNo,
-            transactionType: transferData.transactionType,
-          },
-        });
-      }, 500);
+      // Navigate to payment page
+      router.push('/account/payment');
     } catch (error) {
+      console.error('Transfer error:', error);
+      Alert.alert('Error', 'Could not process transfer. Please try again.');
+    } finally {
       setLoading(false);
-      console.error('Authentication error:', error);
-      Alert.alert('Authentication Error', 'Authentication failed. Please try again.');
-      setPinError('Authentication failed. Please try again.');
     }
-  };
-
-  // Handle PIN modal cancellation
-  const handlePinCancel = () => {
-    setShowPinModal(false);
   };
 
   return (
@@ -286,17 +254,6 @@ export default function BankTransfer() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-
-      {/* PIN Input Modal */}
-      {showPinModal && (
-        <Modal
-          animationType="slide"
-          presentationStyle="fullScreen"
-          visible={showPinModal}
-          onRequestClose={handlePinCancel}>
-          <PinInput onComplete={handlePinComplete} onCancel={handlePinCancel} error={pinError} />
-        </Modal>
-      )}
 
       {/* Loading indicator */}
       {loading && <Loader text="Processing..." />}

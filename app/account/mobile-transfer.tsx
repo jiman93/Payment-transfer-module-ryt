@@ -13,7 +13,7 @@ type ContactWithState = Contacts.Contact & {
 
 export default function MobileTransfer() {
   const router = useRouter();
-  const { recipients } = useTransferForm();
+  const { startTransfer } = useTransferForm();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [contacts, setContacts] = useState<ContactWithState[]>([]);
@@ -147,15 +147,15 @@ export default function MobileTransfer() {
       return;
     }
 
-    // Navigate to payment page with mobile transfer details
-    router.push({
-      pathname: '/account/payment',
-      params: {
-        recipientName: contact.name || 'Contact',
-        mobileNumber: contact.phoneNumber,
-        transactionType: 'Fund Transfer' as TransactionType,
-      },
+    // Use the Zustand store instead of URL params
+    startTransfer({
+      recipientName: contact.name || 'Contact',
+      mobileNumber: contact.phoneNumber,
+      transactionType: 'Fund Transfer' as TransactionType,
     });
+
+    // Navigate to payment page without params
+    router.push('/account/payment');
   };
 
   return (
